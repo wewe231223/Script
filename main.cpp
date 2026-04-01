@@ -95,7 +95,7 @@ int main(void) {
 
     bool IsAttachedA{ Framework.AttachScriptFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
     bool IsAttachedB{ Framework.AttachScriptFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
-    bool IsAttachedC{ Framework.AttachScriptFromFile(EntityC, "Script/Lua/DemoUpdate.lua", 3u) };
+    bool IsAttachedC{ Framework.AttachScriptFromFile(EntityC, "Script/Lua/DemoSupport.lua", 3u) };
 
     if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false) {
         std::cout << "스크립트 부착 실패" << std::endl;
@@ -130,7 +130,7 @@ int main(void) {
 
     bool IsEntityAValid{ AlmostEqual(FinalTransformA->mPosition.mX, 2.4f, 0.001f) && AlmostEqual(FinalVelocityA->mLinear.mX, 2.5f, 0.001f) && FinalHealthA->mCurrent == 14 && AlmostEqual(FinalEnergyA->mCurrent, 24.0f, 0.001f) };
     bool IsEntityBValid{ AlmostEqual(FinalTransformB->mPosition.mY, 3.6f, 0.001f) && AlmostEqual(FinalVelocityB->mLinear.mY, 2.5f, 0.001f) && FinalHealthB->mCurrent == 10 && AlmostEqual(FinalEnergyB->mCurrent, 49.0f, 0.001f) };
-    bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 0 };
+    bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 5 };
 
     if (IsEntityAValid == false || IsEntityBValid == false || IsEntityCValid == false) {
         std::cout << "검증 실패" << std::endl;
