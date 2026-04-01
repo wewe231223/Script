@@ -19,6 +19,9 @@
     <Filter Include="Utility">
       <UniqueIdentifier>{62940776-a13f-4dbe-bb21-e27f1a3f4379}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Script">
+      <UniqueIdentifier>{11111111-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -35,6 +38,9 @@
     </ClCompile>
     <ClCompile Include="Arche\World.cpp">
       <Filter>Arche</Filter>
+    </ClCompile>
+    <ClCompile Include="Script\LuaScriptFramework.cpp">
+      <Filter>Script</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -53,6 +59,15 @@
     <ClInclude Include="Arche\World.h">
       <Filter>Arche</Filter>
     </ClInclude>
+    <ClInclude Include="Script\DemoComponents.h">
+      <Filter>Script</Filter>
+    </ClInclude>
+    <ClInclude Include="Script\LuaScriptFramework.h">
+      <Filter>Script</Filter>
+    </ClInclude>
+    <ClInclude Include="Script\ScriptComponents.h">
+      <Filter>Script</Filter>
+    </ClInclude>
     <ClInclude Include="Utility\ComponentRestraint.h">
       <Filter>Utility</Filter>
     </ClInclude>
@@ -60,6 +75,12 @@
   <ItemGroup>
     <None Include="Arche\World.inl">
       <Filter>Arche</Filter>
+    </None>
+    <None Include="Script\Lua\DemoUpdate.lua">
+      <Filter>Script</Filter>
+    </None>
+    <None Include="Script\LuaScriptFramework.inl">
+      <Filter>Script</Filter>
     </None>
   </ItemGroup>
 </Project>

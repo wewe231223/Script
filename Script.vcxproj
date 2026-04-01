@@ -72,9 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(SolutionDir)\External\Include\lua;$(SolutionDir)\External\Include;$(SolutionDir);$(IncludePath)</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(SolutionDir)\External\lib</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(SolutionDir)\External\Include\lua;$(SolutionDir)\External\Include;$(SolutionDir);$(IncludePath)</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(SolutionDir)\External\lib</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -137,6 +139,7 @@
     <ClCompile Include="Arche\Memory.cpp" />
     <ClCompile Include="Arche\TypeSystem.cpp" />
     <ClCompile Include="Arche\World.cpp" />
+    <ClCompile Include="Script\LuaScriptFramework.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -145,10 +148,15 @@
     <ClInclude Include="Arche\Memory.h" />
     <ClInclude Include="Arche\TypeSystem.h" />
     <ClInclude Include="Arche\World.h" />
+    <ClInclude Include="Script\DemoComponents.h" />
+    <ClInclude Include="Script\LuaScriptFramework.h" />
+    <ClInclude Include="Script\ScriptComponents.h" />
     <ClInclude Include="Utility\ComponentRestraint.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Arche\World.inl" />
+    <None Include="Script\Lua\DemoUpdate.lua" />
+    <None Include="Script\LuaScriptFramework.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
