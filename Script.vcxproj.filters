@@ -16,6 +16,9 @@
     <Filter Include="Arche">
       <UniqueIdentifier>{c4e7bb4d-7726-49c2-9775-717a9583fcf1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Utility">
+      <UniqueIdentifier>{62940776-a13f-4dbe-bb21-e27f1a3f4379}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -49,6 +52,9 @@
     </ClInclude>
     <ClInclude Include="Arche\World.h">
       <Filter>Arche</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\ComponentRestraint.h">
+      <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

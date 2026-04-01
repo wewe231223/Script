@@ -145,6 +145,7 @@
     <ClInclude Include="Arche\Memory.h" />
     <ClInclude Include="Arche\TypeSystem.h" />
     <ClInclude Include="Arche\World.h" />
+    <ClInclude Include="Utility\ComponentRestraint.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Arche\World.inl" />
