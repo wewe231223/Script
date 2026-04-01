@@ -70,6 +70,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)\External\Include\lua;$(SolutionDir)\External\Include;$(SolutionDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(SolutionDir)\External\Include\lua;$(SolutionDir)\External\Include;$(SolutionDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -127,7 +133,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Arche\ArcheType.cpp" />
+    <ClCompile Include="Arche\Memory.cpp" />
+    <ClCompile Include="Arche\TypeSystem.cpp" />
+    <ClCompile Include="Arche\World.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Arche\ArcheType.h" />
+    <ClInclude Include="Arche\Common.h" />
+    <ClInclude Include="Arche\Memory.h" />
+    <ClInclude Include="Arche\TypeSystem.h" />
+    <ClInclude Include="Arche\World.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Arche\World.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
