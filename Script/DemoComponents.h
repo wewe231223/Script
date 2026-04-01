@@ -17,7 +17,21 @@ Component(VelocityComponent)
     Vec3 mLinear{};
 EndComponent(VelocityComponent)
 
+Component(AccelerationComponent)
+    Vec3 mLinear{};
+EndComponent(AccelerationComponent)
+
 Component(HealthComponent)
     std::int32_t mCurrent{};
     std::int32_t mMax{};
 EndComponent(HealthComponent)
+
+Component(EnergyComponent)
+    float mCurrent{};
+    float mDrainPerSecond{};
+    float mRegenPerSecond{};
+EndComponent(EnergyComponent)
+
+Component(FactionComponent)
+    std::int32_t mTeamId{};
+EndComponent(FactionComponent)
