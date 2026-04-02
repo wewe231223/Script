@@ -156,6 +156,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Arche\World.inl" />
+    <None Include="Script\Lua\DemoMatrix.lua" />
+    <None Include="Script\Lua\DemoSupport.lua" />
     <None Include="Script\Lua\DemoUpdate.lua" />
     <None Include="Script\LuaScriptFramework.inl" />
   </ItemGroup>
