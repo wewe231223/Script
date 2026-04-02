@@ -83,6 +83,11 @@ int main(void) {
 
     Arche::EntityID EntityC{ MainWorld.CreateEntity<TransformComponent, HealthComponent, FactionComponent, ValueOnlyComponent>(TransformC, HealthC, FactionC, ValueOnlyC) };
 
+    ValueOnlyComponent ValueOnlyD{};
+    ValueOnlyD.mValue = 0;
+
+    Arche::EntityID EntityD{ MainWorld.CreateEntity<ValueOnlyComponent>(ValueOnlyD) };
+
     Script::LuaScriptFramework Framework{};
     Framework.Initialize(&MainWorld);
     Framework.OpenDefaultLibraries();
@@ -95,12 +100,14 @@ int main(void) {
     Framework.RegisterComponentByDefinition<EnergyComponent>();
     Framework.RegisterComponentByDefinition<FactionComponent>();
     Framework.RegisterComponentByDefinition<ValueOnlyComponent>();
+    Framework.RegisterTypeByDefinition<SimpleMath::Matrix4x4>();
 
     bool IsAttachedA{ Framework.AttachScriptFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
     bool IsAttachedB{ Framework.AttachScriptFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
     bool IsAttachedC{ Framework.AttachScriptFromFile(EntityC, "Script/Lua/DemoSupport.lua", 3u) };
+    bool IsAttachedD{ Framework.AttachScriptFromFile(EntityD, "Script/Lua/DemoMatrix.lua", 4u) };
 
-    if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false) {
+    if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false || IsAttachedD == false) {
         std::cout << "스크립트 부착 실패" << std::endl;
         return 1;
     }
@@ -124,8 +131,9 @@ int main(void) {
     TransformComponent* FinalTransformC{ MainWorld.GetComponent<TransformComponent>(EntityC) };
     HealthComponent* FinalHealthC{ MainWorld.GetComponent<HealthComponent>(EntityC) };
     ValueOnlyComponent* FinalValueOnlyC{ MainWorld.GetComponent<ValueOnlyComponent>(EntityC) };
+    ValueOnlyComponent* FinalValueOnlyD{ MainWorld.GetComponent<ValueOnlyComponent>(EntityD) };
 
-    if (FinalTransformA == nullptr || FinalVelocityA == nullptr || FinalHealthA == nullptr || FinalEnergyA == nullptr || FinalValueOnlyA == nullptr || FinalTransformB == nullptr || FinalVelocityB == nullptr || FinalHealthB == nullptr || FinalEnergyB == nullptr || FinalValueOnlyB == nullptr || FinalTransformC == nullptr || FinalHealthC == nullptr || FinalValueOnlyC == nullptr) {
+    if (FinalTransformA == nullptr || FinalVelocityA == nullptr || FinalHealthA == nullptr || FinalEnergyA == nullptr || FinalValueOnlyA == nullptr || FinalTransformB == nullptr || FinalVelocityB == nullptr || FinalHealthB == nullptr || FinalEnergyB == nullptr || FinalValueOnlyB == nullptr || FinalTransformC == nullptr || FinalHealthC == nullptr || FinalValueOnlyC == nullptr || FinalValueOnlyD == nullptr) {
         std::cout << "컴포넌트 조회 실패" << std::endl;
         return 1;
     }
@@ -137,8 +145,9 @@ int main(void) {
     bool IsEntityAValid{ AlmostEqual(FinalTransformA->mPosition.mX, 2.4f, 0.001f) && AlmostEqual(FinalVelocityA->mLinear.mX, 2.5f, 0.001f) && FinalHealthA->mCurrent == 14 && FinalHealthA->IsAlive() && AlmostEqual(FinalEnergyA->mCurrent, 24.0f, 0.001f) && FinalValueOnlyA->mValue == 11 };
     bool IsEntityBValid{ AlmostEqual(FinalTransformB->mPosition.mY, 3.6f, 0.001f) && AlmostEqual(FinalVelocityB->mLinear.mY, 2.5f, 0.001f) && FinalHealthB->mCurrent == 10 && FinalHealthB->IsAlive() && AlmostEqual(FinalEnergyB->mCurrent, 49.0f, 0.001f) && FinalValueOnlyB->mValue == 22 };
     bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 5 && FinalHealthC->IsAlive() && FinalValueOnlyC->mValue == 33 };
+    bool IsEntityDValid{ FinalValueOnlyD->mValue == 12 };
 
-    if (IsEntityAValid == false || IsEntityBValid == false || IsEntityCValid == false) {
+    if (IsEntityAValid == false || IsEntityBValid == false || IsEntityCValid == false || IsEntityDValid == false) {
         std::cout << "검증 실패" << std::endl;
         return 1;
     }

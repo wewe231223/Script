@@ -43,6 +43,31 @@ concept HasLuaComponentDefinition = requires {
     { LuaComponentDefinitionTraits<TComponent>::Create() };
 };
 
+template <typename TType, typename... TMemberPointers>
+struct LuaTypeDefinition final {
+    using ValueType = TType;
+    using BindingTuple = std::tuple<std::pair<const char*, TMemberPointers>...>;
+
+    const char* mTypeName{};
+    BindingTuple mBindings{};
+};
+
+template <typename TType, typename... TMemberPointers>
+constexpr LuaTypeDefinition<TType, TMemberPointers...> MakeLuaTypeDefinition(const char* TypeName, std::pair<const char*, TMemberPointers>... Bindings) {
+    LuaTypeDefinition<TType, TMemberPointers...> Definition{};
+    Definition.mTypeName = TypeName;
+    Definition.mBindings = typename LuaTypeDefinition<TType, TMemberPointers...>::BindingTuple{ Bindings... };
+    return Definition;
+}
+
+template <typename TType>
+struct LuaTypeDefinitionTraits;
+
+template <typename TType>
+concept HasLuaTypeDefinition = requires {
+    { LuaTypeDefinitionTraits<TType>::Create() };
+};
+
 #define COMPONENT_DECL_DECLARE_FIELD_HELPER(R, Data, Element) BOOST_PP_TUPLE_ELEM(2, 0, Element) BOOST_PP_TUPLE_ELEM(2, 1, Element){};
 #define COMPONENT_DECL_DECLARE_METHOD_HELPER(R, Data, Element) BOOST_PP_TUPLE_ELEM(2, 0, Element);
 #define COMPONENT_DECL_APPEND_FIELD_BINDING_HELPER(R, TypeName, Element) , std::pair<const char*, decltype(&TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element))>{ BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(2, 1, Element)), &TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element) }
@@ -51,6 +76,8 @@ concept HasLuaComponentDefinition = requires {
 #define ComponentMethod(Signature, Name) ((Signature, Name))
 #define ComponentFields(...) __VA_ARGS__
 #define ComponentMethods(...) __VA_ARGS__
+#define LUA_TYPE_APPEND_FIELD_BINDING_HELPER(R, TypeName, Element) , std::pair<const char*, decltype(&TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element))>{ BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(2, 1, Element)), &TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element) }
+#define LUA_TYPE_APPEND_METHOD_BINDING_HELPER(R, TypeName, Element) , std::pair<const char*, decltype(&TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element))>{ BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(2, 1, Element)), &TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element) }
 
 /*
 ComponentDecl 사용 규칙:
@@ -84,3 +111,13 @@ struct LuaComponentDefinitionTraits<TypeName> final { \
         return MakeLuaComponentDefinition<TypeName>(BOOST_PP_STRINGIZE(TypeName) BOOST_PP_SEQ_FOR_EACH(COMPONENT_DECL_APPEND_FIELD_BINDING_HELPER, TypeName, FieldsSeq) BOOST_PP_SEQ_FOR_EACH(COMPONENT_DECL_APPEND_METHOD_BINDING_HELPER, TypeName, MethodsSeq)); \
     } \
 }
+
+#define LuaTypeDefinitionDeclWithName(TypeName, LuaTypeName, FieldsSeq, MethodsSeq) \
+template <> \
+struct LuaTypeDefinitionTraits<TypeName> final { \
+    static constexpr auto Create() { \
+        return MakeLuaTypeDefinition<TypeName>(LuaTypeName BOOST_PP_SEQ_FOR_EACH(LUA_TYPE_APPEND_FIELD_BINDING_HELPER, TypeName, FieldsSeq) BOOST_PP_SEQ_FOR_EACH(LUA_TYPE_APPEND_METHOD_BINDING_HELPER, TypeName, MethodsSeq)); \
+    } \
+}
+
+#define LuaTypeDefinitionDecl(TypeName, FieldsSeq, MethodsSeq) LuaTypeDefinitionDeclWithName(TypeName, BOOST_PP_STRINGIZE(TypeName), FieldsSeq, MethodsSeq)

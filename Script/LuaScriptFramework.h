@@ -74,8 +74,15 @@ namespace Script {
         requires HasLuaComponentDefinition<T>
         void RegisterComponentByDefinition();
 
+        template <typename T>
+        requires HasLuaTypeDefinition<T>
+        void RegisterTypeByDefinition();
+
         template <typename T, typename... TArgs>
         void RegisterComponentUsertype(const std::string& ComponentName, TArgs&&... UsertypeArguments);
+
+        template <typename T, typename... TArgs>
+        void RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments);
 
         bool AttachScript(Arche::EntityID TargetEntity, const std::string& ScriptSource, std::uint32_t ScriptAssetId);
         bool AttachScriptFromFile(Arche::EntityID TargetEntity, const std::string& ScriptFilePath, std::uint32_t ScriptAssetId);

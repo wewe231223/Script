@@ -84,3 +84,55 @@ ComponentDecl(
     ),
     BOOST_PP_SEQ_NIL
 );
+
+namespace SimpleMath {
+    struct Matrix4x4 final {
+        float mM11{};
+        float mM12{};
+        float mM13{};
+        float mM14{};
+        float mM21{};
+        float mM22{};
+        float mM23{};
+        float mM24{};
+        float mM31{};
+        float mM32{};
+        float mM33{};
+        float mM34{};
+        float mM41{};
+        float mM42{};
+        float mM43{};
+        float mM44{};
+
+        static Matrix4x4 CreateIdentity();
+        float GetTrace() const;
+        void SetDiagonal(float Value);
+    };
+}
+
+LuaTypeDefinitionDeclWithName(
+    SimpleMath::Matrix4x4,
+    "SimpleMathMatrix4x4",
+    ComponentFields(
+        ComponentField(float, mM11)
+        ComponentField(float, mM12)
+        ComponentField(float, mM13)
+        ComponentField(float, mM14)
+        ComponentField(float, mM21)
+        ComponentField(float, mM22)
+        ComponentField(float, mM23)
+        ComponentField(float, mM24)
+        ComponentField(float, mM31)
+        ComponentField(float, mM32)
+        ComponentField(float, mM33)
+        ComponentField(float, mM34)
+        ComponentField(float, mM41)
+        ComponentField(float, mM42)
+        ComponentField(float, mM43)
+        ComponentField(float, mM44)
+    ),
+    ComponentMethods(
+        ComponentMethod(float GetTrace() const, GetTrace)
+        ComponentMethod(void SetDiagonal(float Value), SetDiagonal)
+    )
+);

@@ -12,6 +12,12 @@ namespace Script {
         ApplyComponentBindingsToUsertypeImpl(Usertype, Definition.mFieldBindings, std::index_sequence<TIndices...>{});
     }
 
+    template <typename TDefinition, std::size_t... TIndices>
+    void RegisterTypeUsertypeByDefinitionImpl(sol::state& LuaState, const TDefinition& Definition, std::index_sequence<TIndices...>) {
+        auto Usertype{ LuaState.new_usertype<typename TDefinition::ValueType>(Definition.mTypeName, sol::constructors<typename TDefinition::ValueType()>()) };
+        ApplyComponentBindingsToUsertypeImpl(Usertype, Definition.mBindings, std::index_sequence<TIndices...>{});
+    }
+
     template <TrivialComponent T>
     T* LuaScriptFramework::ScriptContext::GetComponent() {
         if (mWorld == nullptr) {
@@ -51,8 +57,20 @@ namespace Script {
         RegisterComponent<T>(Definition.mTypeName);
     }
 
+    template <typename T>
+    requires HasLuaTypeDefinition<T>
+    void LuaScriptFramework::RegisterTypeByDefinition() {
+        constexpr auto Definition{ LuaTypeDefinitionTraits<T>::Create() };
+        RegisterTypeUsertypeByDefinitionImpl(mLuaState, Definition, std::make_index_sequence<std::tuple_size_v<typename decltype(Definition)::BindingTuple>>{});
+    }
+
     template <typename T, typename... TArgs>
     void LuaScriptFramework::RegisterComponentUsertype(const std::string& ComponentName, TArgs&&... UsertypeArguments) {
         mLuaState.new_usertype<T>(ComponentName, std::forward<TArgs>(UsertypeArguments)...);
+    }
+
+    template <typename T, typename... TArgs>
+    void LuaScriptFramework::RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments) {
+        mLuaState.new_usertype<T>(TypeName, std::forward<TArgs>(UsertypeArguments)...);
     }
 }
