@@ -1,13 +1,110 @@
-﻿#include <cmath>
+﻿#include <cstdlib>
 #include <iostream>
+#include <sstream>
+#include <string>
 #include "Arche/World.h"
 #include "Script/LuaScriptFramework.h"
 #include "Script/DemoComponents.h"
 
 #pragma comment(lib, "lua54.lib")
 
-bool AlmostEqual(float Left, float Right, float Epsilon) {
-    return std::fabs(Left - Right) <= Epsilon;
+void ClearConsoleScreen() {
+#if defined(_WIN32)
+    int ClearResult{ std::system("cls") };
+#else
+    int ClearResult{ std::system("clear") };
+#endif
+    if (ClearResult == -1) {
+        std::cout << "\n";
+    }
+}
+
+void PrintBanner() {
+    std::cout << "========================================" << std::endl;
+    std::cout << "      Lua Entity Interactive Demo       " << std::endl;
+    std::cout << "========================================" << std::endl;
+}
+
+void PrintHelp() {
+    std::cout << "[명령어 목록]" << std::endl;
+    std::cout << "  help" << std::endl;
+    std::cout << "  status" << std::endl;
+    std::cout << "  update <DeltaTime>" << std::endl;
+    std::cout << "  tick <Count> <DeltaTime>" << std::endl;
+    std::cout << "  velocity <A|B|D> <X> <Y> <Z>" << std::endl;
+    std::cout << "  health <A|B|C> <Value>" << std::endl;
+    std::cout << "  energy <A|B|D> <Current> <Drain> <Regen>" << std::endl;
+    std::cout << "  faction <A|B|C> <TeamId>" << std::endl;
+    std::cout << "  exit" << std::endl;
+}
+
+bool TryResolveEntity(const std::string& EntityName, const Arche::EntityID EntityA, const Arche::EntityID EntityB, const Arche::EntityID EntityC, const Arche::EntityID EntityD, Arche::EntityID& TargetEntity) {
+    if (EntityName == "A") {
+        TargetEntity = EntityA;
+        return true;
+    }
+
+    if (EntityName == "B") {
+        TargetEntity = EntityB;
+        return true;
+    }
+
+    if (EntityName == "C") {
+        TargetEntity = EntityC;
+        return true;
+    }
+
+    if (EntityName == "D") {
+        TargetEntity = EntityD;
+        return true;
+    }
+
+    return false;
+}
+
+void PrintStatus(Arche::World& MainWorld, const Arche::EntityID EntityA, const Arche::EntityID EntityB, const Arche::EntityID EntityC, const Arche::EntityID EntityD) {
+    TransformComponent* TransformA{ MainWorld.GetComponent<TransformComponent>(EntityA) };
+    VelocityComponent* VelocityA{ MainWorld.GetComponent<VelocityComponent>(EntityA) };
+    HealthComponent* HealthA{ MainWorld.GetComponent<HealthComponent>(EntityA) };
+    EnergyComponent* EnergyA{ MainWorld.GetComponent<EnergyComponent>(EntityA) };
+    FactionComponent* FactionA{ MainWorld.GetComponent<FactionComponent>(EntityA) };
+    ValueOnlyComponent* ValueOnlyA{ MainWorld.GetComponent<ValueOnlyComponent>(EntityA) };
+
+    TransformComponent* TransformB{ MainWorld.GetComponent<TransformComponent>(EntityB) };
+    VelocityComponent* VelocityB{ MainWorld.GetComponent<VelocityComponent>(EntityB) };
+    HealthComponent* HealthB{ MainWorld.GetComponent<HealthComponent>(EntityB) };
+    EnergyComponent* EnergyB{ MainWorld.GetComponent<EnergyComponent>(EntityB) };
+    FactionComponent* FactionB{ MainWorld.GetComponent<FactionComponent>(EntityB) };
+    ValueOnlyComponent* ValueOnlyB{ MainWorld.GetComponent<ValueOnlyComponent>(EntityB) };
+
+    TransformComponent* TransformC{ MainWorld.GetComponent<TransformComponent>(EntityC) };
+    HealthComponent* HealthC{ MainWorld.GetComponent<HealthComponent>(EntityC) };
+    FactionComponent* FactionC{ MainWorld.GetComponent<FactionComponent>(EntityC) };
+    ValueOnlyComponent* ValueOnlyC{ MainWorld.GetComponent<ValueOnlyComponent>(EntityC) };
+
+    TransformComponent* TransformD{ MainWorld.GetComponent<TransformComponent>(EntityD) };
+    VelocityComponent* VelocityD{ MainWorld.GetComponent<VelocityComponent>(EntityD) };
+    EnergyComponent* EnergyD{ MainWorld.GetComponent<EnergyComponent>(EntityD) };
+    ValueOnlyComponent* ValueOnlyD{ MainWorld.GetComponent<ValueOnlyComponent>(EntityD) };
+
+    if (TransformA == nullptr || VelocityA == nullptr || HealthA == nullptr || EnergyA == nullptr || FactionA == nullptr || ValueOnlyA == nullptr || TransformB == nullptr || VelocityB == nullptr || HealthB == nullptr || EnergyB == nullptr || FactionB == nullptr || ValueOnlyB == nullptr || TransformC == nullptr || HealthC == nullptr || FactionC == nullptr || ValueOnlyC == nullptr || TransformD == nullptr || VelocityD == nullptr || EnergyD == nullptr || ValueOnlyD == nullptr) {
+        std::cout << "[오류] 상태 조회 실패" << std::endl;
+        return;
+    }
+
+    std::cout << "\n[엔티티 상태]" << std::endl;
+    std::cout << "A | Pos(" << TransformA->mPosition.mX << ", " << TransformA->mPosition.mY << ", " << TransformA->mPosition.mZ << ") Vel(" << VelocityA->mLinear.mX << ", " << VelocityA->mLinear.mY << ", " << VelocityA->mLinear.mZ << ") HP(" << HealthA->mCurrent << "/" << HealthA->mMax << ") EN(" << EnergyA->mCurrent << ") Team(" << FactionA->mTeamId << ") Value(" << ValueOnlyA->mValue << ")" << std::endl;
+    std::cout << "B | Pos(" << TransformB->mPosition.mX << ", " << TransformB->mPosition.mY << ", " << TransformB->mPosition.mZ << ") Vel(" << VelocityB->mLinear.mX << ", " << VelocityB->mLinear.mY << ", " << VelocityB->mLinear.mZ << ") HP(" << HealthB->mCurrent << "/" << HealthB->mMax << ") EN(" << EnergyB->mCurrent << ") Team(" << FactionB->mTeamId << ") Value(" << ValueOnlyB->mValue << ")" << std::endl;
+    std::cout << "C | Pos(" << TransformC->mPosition.mX << ", " << TransformC->mPosition.mY << ", " << TransformC->mPosition.mZ << ") HP(" << HealthC->mCurrent << "/" << HealthC->mMax << ") Team(" << FactionC->mTeamId << ") Value(" << ValueOnlyC->mValue << ")" << std::endl;
+    std::cout << "D | Pos(" << TransformD->mPosition.mX << ", " << TransformD->mPosition.mY << ", " << TransformD->mPosition.mZ << ") Vel(" << VelocityD->mLinear.mX << ", " << VelocityD->mLinear.mY << ", " << VelocityD->mLinear.mZ << ") EN(" << EnergyD->mCurrent << ") Value(" << ValueOnlyD->mValue << ")" << std::endl;
+}
+
+void RenderConsole(Arche::World& MainWorld, const Arche::EntityID EntityA, const Arche::EntityID EntityB, const Arche::EntityID EntityC, const Arche::EntityID EntityD, const std::string& LastResultMessage) {
+    ClearConsoleScreen();
+    PrintBanner();
+    PrintHelp();
+    PrintStatus(MainWorld, EntityA, EntityB, EntityC, EntityD);
+    std::cout << "\n[이전 결과] " << LastResultMessage << std::endl;
 }
 
 int main(void) {
@@ -83,10 +180,22 @@ int main(void) {
 
     Arche::EntityID EntityC{ MainWorld.CreateEntity<TransformComponent, HealthComponent, FactionComponent, ValueOnlyComponent>(TransformC, HealthC, FactionC, ValueOnlyC) };
 
+    TransformComponent TransformD{};
+    TransformD.mPosition = Vec3{ 3.0f, 0.0f, 0.0f };
+    TransformD.mScale = Vec3{ 1.0f, 1.0f, 1.0f };
+
+    VelocityComponent VelocityD{};
+    VelocityD.mLinear = Vec3{ 0.0f, 2.0f, 0.0f };
+
+    EnergyComponent EnergyD{};
+    EnergyD.mCurrent = 70.0f;
+    EnergyD.mDrainPerSecond = 2.0f;
+    EnergyD.mRegenPerSecond = 4.0f;
+
     ValueOnlyComponent ValueOnlyD{};
     ValueOnlyD.mValue = 0;
 
-    Arche::EntityID EntityD{ MainWorld.CreateEntity<ValueOnlyComponent>(ValueOnlyD) };
+    Arche::EntityID EntityD{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, EnergyComponent, ValueOnlyComponent>(TransformD, VelocityD, EnergyD, ValueOnlyD) };
 
     Script::LuaScriptFramework Framework{};
     Framework.Initialize(&MainWorld);
@@ -108,50 +217,207 @@ int main(void) {
     bool IsAttachedD{ Framework.AttachScriptFromFile(EntityD, "Script/Lua/DemoMatrix.lua", 4u) };
 
     if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false || IsAttachedD == false) {
-        std::cout << "스크립트 부착 실패" << std::endl;
+        std::cout << "[오류] 스크립트 부착 실패" << std::endl;
         return 1;
     }
 
-    Framework.Update(0.5f);
-    Framework.Update(0.5f);
-    Framework.Update(0.5f);
+    std::string LastResultMessage{ "준비 완료" };
 
-    TransformComponent* FinalTransformA{ MainWorld.GetComponent<TransformComponent>(EntityA) };
-    VelocityComponent* FinalVelocityA{ MainWorld.GetComponent<VelocityComponent>(EntityA) };
-    HealthComponent* FinalHealthA{ MainWorld.GetComponent<HealthComponent>(EntityA) };
-    EnergyComponent* FinalEnergyA{ MainWorld.GetComponent<EnergyComponent>(EntityA) };
-    ValueOnlyComponent* FinalValueOnlyA{ MainWorld.GetComponent<ValueOnlyComponent>(EntityA) };
+    while (true) {
+        RenderConsole(MainWorld, EntityA, EntityB, EntityC, EntityD, LastResultMessage);
+        std::cout << "\nCommand > ";
 
-    TransformComponent* FinalTransformB{ MainWorld.GetComponent<TransformComponent>(EntityB) };
-    VelocityComponent* FinalVelocityB{ MainWorld.GetComponent<VelocityComponent>(EntityB) };
-    HealthComponent* FinalHealthB{ MainWorld.GetComponent<HealthComponent>(EntityB) };
-    EnergyComponent* FinalEnergyB{ MainWorld.GetComponent<EnergyComponent>(EntityB) };
-    ValueOnlyComponent* FinalValueOnlyB{ MainWorld.GetComponent<ValueOnlyComponent>(EntityB) };
+        std::string InputLine{};
+        std::getline(std::cin, InputLine);
 
-    TransformComponent* FinalTransformC{ MainWorld.GetComponent<TransformComponent>(EntityC) };
-    HealthComponent* FinalHealthC{ MainWorld.GetComponent<HealthComponent>(EntityC) };
-    ValueOnlyComponent* FinalValueOnlyC{ MainWorld.GetComponent<ValueOnlyComponent>(EntityC) };
-    ValueOnlyComponent* FinalValueOnlyD{ MainWorld.GetComponent<ValueOnlyComponent>(EntityD) };
+        if (std::cin.good() == false) {
+            return 0;
+        }
 
-    if (FinalTransformA == nullptr || FinalVelocityA == nullptr || FinalHealthA == nullptr || FinalEnergyA == nullptr || FinalValueOnlyA == nullptr || FinalTransformB == nullptr || FinalVelocityB == nullptr || FinalHealthB == nullptr || FinalEnergyB == nullptr || FinalValueOnlyB == nullptr || FinalTransformC == nullptr || FinalHealthC == nullptr || FinalValueOnlyC == nullptr || FinalValueOnlyD == nullptr) {
-        std::cout << "컴포넌트 조회 실패" << std::endl;
-        return 1;
+        std::istringstream InputStream{ InputLine };
+        std::string Command{};
+        InputStream >> Command;
+
+        if (Command.empty()) {
+            LastResultMessage = "빈 명령은 처리하지 않습니다.";
+            continue;
+        }
+
+        if (Command == "help") {
+            LastResultMessage = "도움말은 화면 상단에 항상 표시됩니다.";
+            continue;
+        }
+
+        if (Command == "status") {
+            LastResultMessage = "상태를 새로 고침했습니다.";
+            continue;
+        }
+
+        if (Command == "update") {
+            float DeltaTime{ 0.0f };
+            InputStream >> DeltaTime;
+
+            if (InputStream.fail() || DeltaTime <= 0.0f) {
+                LastResultMessage = "실패: update <DeltaTime> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Framework.Update(DeltaTime);
+            LastResultMessage = "완료: update 실행";
+            continue;
+        }
+
+        if (Command == "tick") {
+            int Count{ 0 };
+            float DeltaTime{ 0.0f };
+            InputStream >> Count >> DeltaTime;
+
+            if (InputStream.fail() || Count <= 0 || DeltaTime <= 0.0f) {
+                LastResultMessage = "실패: tick <Count> <DeltaTime> 형식으로 입력하세요.";
+                continue;
+            }
+
+            int Index{ 0 };
+
+            while (Index < Count) {
+                Framework.Update(DeltaTime);
+                Index = Index + 1;
+            }
+
+            LastResultMessage = "완료: tick 실행";
+            continue;
+        }
+
+        if (Command == "velocity") {
+            std::string EntityName{};
+            float VelocityX{ 0.0f };
+            float VelocityY{ 0.0f };
+            float VelocityZ{ 0.0f };
+            InputStream >> EntityName >> VelocityX >> VelocityY >> VelocityZ;
+
+            if (InputStream.fail()) {
+                LastResultMessage = "실패: velocity <A|B|D> <X> <Y> <Z> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false || EntityName == "C") {
+                LastResultMessage = "실패: velocity 는 A, B, D만 지원합니다.";
+                continue;
+            }
+
+            VelocityComponent* TargetVelocity{ MainWorld.GetComponent<VelocityComponent>(TargetEntity) };
+
+            if (TargetVelocity == nullptr) {
+                LastResultMessage = "실패: VelocityComponent가 없습니다.";
+                continue;
+            }
+
+            TargetVelocity->mLinear = Vec3{ VelocityX, VelocityY, VelocityZ };
+            LastResultMessage = "완료: velocity 변경";
+            continue;
+        }
+
+        if (Command == "health") {
+            std::string EntityName{};
+            int HealthValue{ 0 };
+            InputStream >> EntityName >> HealthValue;
+
+            if (InputStream.fail()) {
+                LastResultMessage = "실패: health <A|B|C> <Value> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false || EntityName == "D") {
+                LastResultMessage = "실패: health 는 A, B, C만 지원합니다.";
+                continue;
+            }
+
+            HealthComponent* TargetHealth{ MainWorld.GetComponent<HealthComponent>(TargetEntity) };
+
+            if (TargetHealth == nullptr) {
+                LastResultMessage = "실패: HealthComponent가 없습니다.";
+                continue;
+            }
+
+            TargetHealth->mCurrent = HealthValue;
+            LastResultMessage = "완료: health 변경";
+            continue;
+        }
+
+        if (Command == "energy") {
+            std::string EntityName{};
+            float EnergyCurrent{ 0.0f };
+            float EnergyDrain{ 0.0f };
+            float EnergyRegen{ 0.0f };
+            InputStream >> EntityName >> EnergyCurrent >> EnergyDrain >> EnergyRegen;
+
+            if (InputStream.fail()) {
+                LastResultMessage = "실패: energy <A|B|D> <Current> <Drain> <Regen> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false || EntityName == "C") {
+                LastResultMessage = "실패: energy 는 A, B, D만 지원합니다.";
+                continue;
+            }
+
+            EnergyComponent* TargetEnergy{ MainWorld.GetComponent<EnergyComponent>(TargetEntity) };
+
+            if (TargetEnergy == nullptr) {
+                LastResultMessage = "실패: EnergyComponent가 없습니다.";
+                continue;
+            }
+
+            TargetEnergy->mCurrent = EnergyCurrent;
+            TargetEnergy->mDrainPerSecond = EnergyDrain;
+            TargetEnergy->mRegenPerSecond = EnergyRegen;
+            LastResultMessage = "완료: energy 변경";
+            continue;
+        }
+
+        if (Command == "faction") {
+            std::string EntityName{};
+            int TeamId{ 0 };
+            InputStream >> EntityName >> TeamId;
+
+            if (InputStream.fail()) {
+                LastResultMessage = "실패: faction <A|B|C> <TeamId> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false || EntityName == "D") {
+                LastResultMessage = "실패: faction 은 A, B, C만 지원합니다.";
+                continue;
+            }
+
+            FactionComponent* TargetFaction{ MainWorld.GetComponent<FactionComponent>(TargetEntity) };
+
+            if (TargetFaction == nullptr) {
+                LastResultMessage = "실패: FactionComponent가 없습니다.";
+                continue;
+            }
+
+            TargetFaction->mTeamId = TeamId;
+            LastResultMessage = "완료: faction 변경";
+            continue;
+        }
+
+        if (Command == "exit") {
+            return 0;
+        }
+
+        LastResultMessage = "실패: 알 수 없는 명령입니다.";
     }
-
-    std::cout << "EntityA PositionX: " << FinalTransformA->mPosition.mX << " VelocityX: " << FinalVelocityA->mLinear.mX << " Health: " << FinalHealthA->mCurrent << " Energy: " << FinalEnergyA->mCurrent << std::endl;
-    std::cout << "EntityB PositionY: " << FinalTransformB->mPosition.mY << " VelocityY: " << FinalVelocityB->mLinear.mY << " Health: " << FinalHealthB->mCurrent << " Energy: " << FinalEnergyB->mCurrent << std::endl;
-    std::cout << "EntityC PositionX: " << FinalTransformC->mPosition.mX << " Health: " << FinalHealthC->mCurrent << std::endl;
-
-    bool IsEntityAValid{ AlmostEqual(FinalTransformA->mPosition.mX, 2.4f, 0.001f) && AlmostEqual(FinalVelocityA->mLinear.mX, 2.5f, 0.001f) && FinalHealthA->mCurrent == 14 && FinalHealthA->IsAlive() && AlmostEqual(FinalEnergyA->mCurrent, 24.0f, 0.001f) && FinalValueOnlyA->mValue == 11 };
-    bool IsEntityBValid{ AlmostEqual(FinalTransformB->mPosition.mY, 3.6f, 0.001f) && AlmostEqual(FinalVelocityB->mLinear.mY, 2.5f, 0.001f) && FinalHealthB->mCurrent == 10 && FinalHealthB->IsAlive() && AlmostEqual(FinalEnergyB->mCurrent, 49.0f, 0.001f) && FinalValueOnlyB->mValue == 22 };
-    bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 5 && FinalHealthC->IsAlive() && FinalValueOnlyC->mValue == 33 };
-    bool IsEntityDValid{ FinalValueOnlyD->mValue == 12 };
-
-    if (IsEntityAValid == false || IsEntityBValid == false || IsEntityCValid == false || IsEntityDValid == false) {
-        std::cout << "검증 실패" << std::endl;
-        return 1;
-    }
-
-    std::cout << "다중 엔티티 Lua 동작 검증 성공" << std::endl;
-    return 0;
 }
