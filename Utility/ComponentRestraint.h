@@ -47,6 +47,28 @@ concept HasLuaComponentDefinition = requires {
 #define COMPONENT_DECL_DECLARE_METHOD_HELPER(R, Data, Element) BOOST_PP_TUPLE_ELEM(2, 0, Element);
 #define COMPONENT_DECL_APPEND_FIELD_BINDING_HELPER(R, TypeName, Element) , std::pair<const char*, decltype(&TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element))>{ BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(2, 1, Element)), &TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element) }
 #define COMPONENT_DECL_APPEND_METHOD_BINDING_HELPER(R, TypeName, Element) , std::pair<const char*, decltype(&TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element))>{ BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(2, 1, Element)), &TypeName::BOOST_PP_TUPLE_ELEM(2, 1, Element) }
+#define ComponentField(Type, Name) ((Type, Name))
+#define ComponentMethod(Signature, Name) ((Signature, Name))
+#define ComponentFields(...) __VA_ARGS__
+#define ComponentMethods(...) __VA_ARGS__
+
+/*
+ComponentDecl 사용 규칙:
+1) FieldsSeq에는 ComponentFields(...) 안에 ComponentField(Type, Name)을 작성한다.
+2) MethodsSeq에는 ComponentMethods(...) 안에 ComponentMethod(Signature, Name)을 작성한다.
+3) 메서드가 없으면 BOOST_PP_SEQ_NIL을 전달한다.
+
+예시:
+ComponentDecl(Vec3,
+    ComponentFields(
+        ComponentField(float, mX)
+        ComponentField(float, mY)
+        ComponentField(float, mZ)
+    ),
+    ComponentMethods(
+        ComponentMethod(float GetLengthSquared() const, GetLengthSquared)
+    ));
+*/
 
 #define ComponentDecl(TypeName, FieldsSeq, MethodsSeq) \
 struct TypeName { \

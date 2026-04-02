@@ -2,18 +2,85 @@
 #include <cstdint>
 #include "Utility/ComponentRestraint.h"
 
-ComponentDecl(Vec3, ((float, mX))((float, mY))((float, mZ)), ((float GetLengthSquared() const, GetLengthSquared))((void NormalizeX(), NormalizeX)));
+ComponentDecl(
+    Vec3,
+    ComponentFields(
+        ComponentField(float, mX)
+        ComponentField(float, mY)
+        ComponentField(float, mZ)
+    ),
+    ComponentMethods(
+        ComponentMethod(float GetLengthSquared() const, GetLengthSquared)
+        ComponentMethod(void NormalizeX(), NormalizeX)
+    )
+);
 
-ComponentDecl(TransformComponent, ((Vec3, mPosition))((Vec3, mScale)), ((void ResetScale(), ResetScale)));
+ComponentDecl(
+    TransformComponent,
+    ComponentFields(
+        ComponentField(Vec3, mPosition)
+        ComponentField(Vec3, mScale)
+    ),
+    ComponentMethods(
+        ComponentMethod(void ResetScale(), ResetScale)
+    )
+);
 
-ComponentDecl(VelocityComponent, ((Vec3, mLinear)), ((float GetSpeedSquared() const, GetSpeedSquared)));
+ComponentDecl(
+    VelocityComponent,
+    ComponentFields(
+        ComponentField(Vec3, mLinear)
+    ),
+    ComponentMethods(
+        ComponentMethod(float GetSpeedSquared() const, GetSpeedSquared)
+    )
+);
 
-ComponentDecl(AccelerationComponent, ((Vec3, mLinear)), ((float GetAccelerationSquared() const, GetAccelerationSquared)));
+ComponentDecl(
+    AccelerationComponent,
+    ComponentFields(
+        ComponentField(Vec3, mLinear)
+    ),
+    ComponentMethods(
+        ComponentMethod(float GetAccelerationSquared() const, GetAccelerationSquared)
+    )
+);
 
-ComponentDecl(HealthComponent, ((std::int32_t, mCurrent))((std::int32_t, mMax)), ((bool IsAlive() const, IsAlive)));
+ComponentDecl(
+    HealthComponent,
+    ComponentFields(
+        ComponentField(std::int32_t, mCurrent)
+        ComponentField(std::int32_t, mMax)
+    ),
+    ComponentMethods(
+        ComponentMethod(bool IsAlive() const, IsAlive)
+    )
+);
 
-ComponentDecl(EnergyComponent, ((float, mCurrent))((float, mDrainPerSecond))((float, mRegenPerSecond)), ((bool HasEnergy() const, HasEnergy)));
+ComponentDecl(
+    EnergyComponent,
+    ComponentFields(
+        ComponentField(float, mCurrent)
+        ComponentField(float, mDrainPerSecond)
+        ComponentField(float, mRegenPerSecond)
+    ),
+    ComponentMethods(
+        ComponentMethod(bool HasEnergy() const, HasEnergy)
+    )
+);
 
-ComponentDecl(FactionComponent, ((std::int32_t, mTeamId)), BOOST_PP_SEQ_NIL);
+ComponentDecl(
+    FactionComponent,
+    ComponentFields(
+        ComponentField(std::int32_t, mTeamId)
+    ),
+    BOOST_PP_SEQ_NIL
+);
 
-ComponentDecl(ValueOnlyComponent, ((std::int32_t, mValue)), BOOST_PP_SEQ_NIL);
+ComponentDecl(
+    ValueOnlyComponent,
+    ComponentFields(
+        ComponentField(std::int32_t, mValue)
+    ),
+    BOOST_PP_SEQ_NIL
+);
