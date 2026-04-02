@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <functional>
 #include <type_traits>
+#include <filesystem>
 #include "sol/sol.hpp"
 #include "Arche/World.h"
 #include "ScriptComponents.h"
@@ -51,6 +52,7 @@ namespace Script {
             ScriptContext mContext{};
             sol::environment mEnvironment{};
             sol::protected_function mOnUpdate{};
+            std::string mScriptFileName{};
         };
 
     public:
@@ -86,6 +88,7 @@ namespace Script {
 
         bool AttachScript(Arche::EntityID TargetEntity, const std::string& ScriptSource, std::uint32_t ScriptAssetId);
         bool AttachScriptFromFile(Arche::EntityID TargetEntity, const std::string& ScriptFilePath, std::uint32_t ScriptAssetId);
+        bool HotReloadScript(const std::string& ScriptFileName);
         void DetachScript(Arche::EntityID TargetEntity);
         void Update(float DeltaSeconds);
 
@@ -97,12 +100,14 @@ namespace Script {
         const RuntimeScriptInstance* FindRuntimeInstance(Arche::EntityID TargetEntity) const;
 
         std::uint32_t GenerateScriptInstanceId();
+        bool ReadScriptSourceFromFilePath(const std::string& ScriptFilePath, std::string& OutScriptSource) const;
         void BindContextToEnvironment(RuntimeScriptInstance& TargetInstance);
 
     private:
         Arche::World* mWorld{};
         sol::state mLuaState{};
         std::unordered_map<std::string, ComponentGetter> mComponentGetters{};
+        std::unordered_map<std::string, std::string> mScriptFilePaths{};
         std::unordered_map<std::uint32_t, RuntimeScriptInstance> mRuntimeInstances{};
         std::uint32_t mLastIssuedScriptInstanceId{};
     };

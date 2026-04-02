@@ -1,3 +1,7 @@
+HotReloadRevision = 1
+HotReloadMoveBoost = 4.0
+HotReloadValueOffset = 700
+
 function Clamp(Value, MinValue, MaxValue)
     if Value < MinValue then
         return MinValue
@@ -35,7 +39,7 @@ function Update(This, DeltaSeconds)
         RegenAmount = 0
     end
 
-    local TickBoost = math.floor(DeltaSeconds * 2.0)
+    local TickBoost = math.floor(DeltaSeconds * 2.0 + HotReloadRevision)
     Health.mCurrent = Clamp(Health.mCurrent + RegenAmount + TickBoost, 0, Health.mMax)
 
     if Transform ~= nil then
@@ -45,8 +49,8 @@ function Update(This, DeltaSeconds)
             MoveBias = 0.4
         end
 
-        Transform.mPosition.mX = Transform.mPosition.mX + DeltaSeconds * MoveBias
-        Transform.mPosition.mY = Transform.mPosition.mY + DeltaSeconds * (MoveBias * 0.5)
+        Transform.mPosition.mX = Transform.mPosition.mX + DeltaSeconds * MoveBias * HotReloadMoveBoost
+        Transform.mPosition.mY = Transform.mPosition.mY + DeltaSeconds * (MoveBias * 0.5) * HotReloadMoveBoost
     end
 
     if ValueOnly ~= nil then
@@ -56,6 +60,6 @@ function Update(This, DeltaSeconds)
             PositionScore = math.abs(Transform.mPosition.mX) + math.abs(Transform.mPosition.mY) + math.abs(Transform.mPosition.mZ)
         end
 
-        ValueOnly.mValue = math.floor(Health.mCurrent * 10 + PositionScore + TeamId)
+        ValueOnly.mValue = math.floor(Health.mCurrent * 10 + PositionScore + TeamId + HotReloadValueOffset + HotReloadRevision * 100)
     end
 end

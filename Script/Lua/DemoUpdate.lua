@@ -1,3 +1,7 @@
+HotReloadRevision = 0
+HotReloadPositionBoost = -1.0
+HotReloadValueOffset = 1000
+
 function Clamp(Value, MinValue, MaxValue)
     if Value < MinValue then
         return MinValue
@@ -47,9 +51,9 @@ function Update(This, DeltaSeconds)
             Damping = 1.15
         end
 
-        Transform.mPosition.mX = Transform.mPosition.mX + Velocity.mLinear.mX * DeltaSeconds * Damping
-        Transform.mPosition.mY = Transform.mPosition.mY + Velocity.mLinear.mY * DeltaSeconds * Damping
-        Transform.mPosition.mZ = Transform.mPosition.mZ + Velocity.mLinear.mZ * DeltaSeconds * Damping
+        Transform.mPosition.mX = Transform.mPosition.mX + Velocity.mLinear.mX * DeltaSeconds * Damping * HotReloadPositionBoost
+        Transform.mPosition.mY = Transform.mPosition.mY + Velocity.mLinear.mY * DeltaSeconds * Damping * HotReloadPositionBoost
+        Transform.mPosition.mZ = Transform.mPosition.mZ + Velocity.mLinear.mZ * DeltaSeconds * Damping * HotReloadPositionBoost
     end
 
     if Health ~= nil and Health:IsAlive() then
@@ -101,6 +105,6 @@ function Update(This, DeltaSeconds)
             EnergyScore = Energy.mCurrent * 0.1
         end
 
-        ValueOnly.mValue = math.floor(PositionScore + HealthScore + EnergyScore + TeamId)
+        ValueOnly.mValue = math.floor(PositionScore + HealthScore + EnergyScore + TeamId + HotReloadValueOffset + HotReloadRevision * 100)
     end
 end

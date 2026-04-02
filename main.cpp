@@ -35,6 +35,7 @@ void PrintHelp() {
     std::cout << "  health <A|B|C> <Value>" << std::endl;
     std::cout << "  energy <A|B|D> <Current> <Drain> <Regen>" << std::endl;
     std::cout << "  faction <A|B|C> <TeamId>" << std::endl;
+    std::cout << "  hot-reload <ScriptFileName>" << std::endl;
     std::cout << "  exit" << std::endl;
 }
 
@@ -416,6 +417,26 @@ int main(void) {
 
         if (Command == "exit") {
             return 0;
+        }
+
+        if (Command == "hot-reload") {
+            std::string ScriptFileName{};
+            InputStream >> ScriptFileName;
+
+            if (InputStream.fail() || ScriptFileName.empty()) {
+                LastResultMessage = "실패: hot-reload <ScriptFileName> 형식으로 입력하세요.";
+                continue;
+            }
+
+            bool IsReloaded{ Framework.HotReloadScript(ScriptFileName) };
+
+            if (!IsReloaded) {
+                LastResultMessage = "실패: hot-reload 실행 실패";
+                continue;
+            }
+
+            LastResultMessage = "완료: hot-reload 실행";
+            continue;
         }
 
         LastResultMessage = "실패: 알 수 없는 명령입니다.";

@@ -1,5 +1,6 @@
 ﻿#include <fstream>
 #include <sstream>
+#include <filesystem>
 #include "LuaScriptFramework.h"
 
 using namespace Script;
@@ -75,6 +76,7 @@ LuaScriptFramework::LuaScriptFramework()
     : mWorld{},
     mLuaState{},
     mComponentGetters{},
+    mScriptFilePaths{},
     mRuntimeInstances{},
     mLastIssuedScriptInstanceId{} {
 }
@@ -131,17 +133,76 @@ bool LuaScriptFramework::AttachScript(Arche::EntityID TargetEntity, const std::s
 
 
 bool LuaScriptFramework::AttachScriptFromFile(Arche::EntityID TargetEntity, const std::string& ScriptFilePath, std::uint32_t ScriptAssetId) {
-    std::ifstream InputStream{ ScriptFilePath, std::ios::in | std::ios::binary };
+    std::string ScriptSource{};
 
-    if (!InputStream.is_open()) {
+    if (!ReadScriptSourceFromFilePath(ScriptFilePath, ScriptSource)) {
         return false;
     }
 
-    std::stringstream Buffer{};
-    Buffer << InputStream.rdbuf();
-    std::string ScriptSource{ Buffer.str() };
+    if (!AttachScript(TargetEntity, ScriptSource, ScriptAssetId)) {
+        return false;
+    }
 
-    return AttachScript(TargetEntity, ScriptSource, ScriptAssetId);
+    RuntimeScriptInstance* RuntimeInstance{ FindRuntimeInstance(TargetEntity) };
+
+    if (RuntimeInstance == nullptr) {
+        return false;
+    }
+
+    std::filesystem::path FullPath{ ScriptFilePath };
+    std::string ScriptFileName{ FullPath.filename().string() };
+    RuntimeInstance->mScriptFileName = ScriptFileName;
+    mScriptFilePaths[ScriptFileName] = ScriptFilePath;
+    return true;
+}
+
+bool LuaScriptFramework::HotReloadScript(const std::string& ScriptFileName) {
+    auto PathIt{ mScriptFilePaths.find(ScriptFileName) };
+
+    if (PathIt == mScriptFilePaths.end()) {
+        std::string FallbackPath{ "Script/Lua/" + ScriptFileName };
+        mScriptFilePaths[ScriptFileName] = FallbackPath;
+        PathIt = mScriptFilePaths.find(ScriptFileName);
+    }
+
+    std::string ScriptSource{};
+
+    if (!ReadScriptSourceFromFilePath(PathIt->second, ScriptSource)) {
+        return false;
+    }
+
+    bool IsEveryReloadSucceeded{ true };
+    std::size_t ReloadedCount{};
+
+    for (auto& RuntimePair : mRuntimeInstances) {
+        RuntimeScriptInstance& RuntimeInstance{ RuntimePair.second };
+
+        if (RuntimeInstance.mScriptFileName != ScriptFileName) {
+            continue;
+        }
+
+        RuntimeInstance.mEnvironment = sol::environment(mLuaState, sol::create, mLuaState.globals());
+        BindContextToEnvironment(RuntimeInstance);
+        sol::protected_function_result LoadResult{ mLuaState.safe_script(ScriptSource, RuntimeInstance.mEnvironment, sol::script_pass_on_error) };
+
+        if (!LoadResult.valid()) {
+            IsEveryReloadSucceeded = false;
+            continue;
+        }
+
+        sol::object Candidate{ RuntimeInstance.mEnvironment["Update"] };
+
+        if (Candidate.get_type() == sol::type::function) {
+            RuntimeInstance.mOnUpdate = Candidate.as<sol::protected_function>();
+        }
+        else {
+            RuntimeInstance.mOnUpdate = sol::protected_function{};
+        }
+
+        ReloadedCount = ReloadedCount + 1;
+    }
+
+    return ReloadedCount > 0 && IsEveryReloadSucceeded;
 }
 
 void LuaScriptFramework::DetachScript(Arche::EntityID TargetEntity) {
@@ -209,6 +270,19 @@ const LuaScriptFramework::RuntimeScriptInstance* LuaScriptFramework::FindRuntime
 std::uint32_t LuaScriptFramework::GenerateScriptInstanceId() {
     ++mLastIssuedScriptInstanceId;
     return mLastIssuedScriptInstanceId;
+}
+
+bool LuaScriptFramework::ReadScriptSourceFromFilePath(const std::string& ScriptFilePath, std::string& OutScriptSource) const {
+    std::ifstream InputStream{ ScriptFilePath, std::ios::in | std::ios::binary };
+
+    if (!InputStream.is_open()) {
+        return false;
+    }
+
+    std::stringstream Buffer{};
+    Buffer << InputStream.rdbuf();
+    OutScriptSource = Buffer.str();
+    return true;
 }
 
 void LuaScriptFramework::BindContextToEnvironment(RuntimeScriptInstance& TargetInstance) {
