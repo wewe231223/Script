@@ -2,36 +2,18 @@
 #include <cstdint>
 #include "Utility/ComponentRestraint.h"
 
-Component(Vec3)
-    float mX{};
-    float mY{};
-    float mZ{};
-EndComponent(Vec3)
+ComponentDecl(Vec3, ((float, mX))((float, mY))((float, mZ)), ((float GetLengthSquared() const, GetLengthSquared))((void NormalizeX(), NormalizeX)));
 
-Component(TransformComponent)
-    Vec3 mPosition{};
-    Vec3 mScale{};
-EndComponent(TransformComponent)
+ComponentDecl(TransformComponent, ((Vec3, mPosition))((Vec3, mScale)), ((void ResetScale(), ResetScale)));
 
-Component(VelocityComponent)
-    Vec3 mLinear{};
-EndComponent(VelocityComponent)
+ComponentDecl(VelocityComponent, ((Vec3, mLinear)), ((float GetSpeedSquared() const, GetSpeedSquared)));
 
-Component(AccelerationComponent)
-    Vec3 mLinear{};
-EndComponent(AccelerationComponent)
+ComponentDecl(AccelerationComponent, ((Vec3, mLinear)), ((float GetAccelerationSquared() const, GetAccelerationSquared)));
 
-Component(HealthComponent)
-    std::int32_t mCurrent{};
-    std::int32_t mMax{};
-EndComponent(HealthComponent)
+ComponentDecl(HealthComponent, ((std::int32_t, mCurrent))((std::int32_t, mMax)), ((bool IsAlive() const, IsAlive)));
 
-Component(EnergyComponent)
-    float mCurrent{};
-    float mDrainPerSecond{};
-    float mRegenPerSecond{};
-EndComponent(EnergyComponent)
+ComponentDecl(EnergyComponent, ((float, mCurrent))((float, mDrainPerSecond))((float, mRegenPerSecond)), ((bool HasEnergy() const, HasEnergy)));
 
-Component(FactionComponent)
-    std::int32_t mTeamId{};
-EndComponent(FactionComponent)
+ComponentDecl(FactionComponent, ((std::int32_t, mTeamId)), BOOST_PP_SEQ_NIL);
+
+ComponentDecl(ValueOnlyComponent, ((std::int32_t, mValue)), BOOST_PP_SEQ_NIL);

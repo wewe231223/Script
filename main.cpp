@@ -35,7 +35,10 @@ int main(void) {
     FactionComponent FactionA{};
     FactionA.mTeamId = 1;
 
-    Arche::EntityID EntityA{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, AccelerationComponent, HealthComponent, EnergyComponent, FactionComponent>(TransformA, VelocityA, AccelerationA, HealthA, EnergyA, FactionA) };
+    ValueOnlyComponent ValueOnlyA{};
+    ValueOnlyA.mValue = 11;
+
+    Arche::EntityID EntityA{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, AccelerationComponent, HealthComponent, EnergyComponent, FactionComponent, ValueOnlyComponent>(TransformA, VelocityA, AccelerationA, HealthA, EnergyA, FactionA, ValueOnlyA) };
 
     TransformComponent TransformB{};
     TransformB.mPosition = Vec3{ 10.0f, 0.0f, 0.0f };
@@ -59,7 +62,10 @@ int main(void) {
     FactionComponent FactionB{};
     FactionB.mTeamId = 2;
 
-    Arche::EntityID EntityB{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, AccelerationComponent, HealthComponent, EnergyComponent, FactionComponent>(TransformB, VelocityB, AccelerationB, HealthB, EnergyB, FactionB) };
+    ValueOnlyComponent ValueOnlyB{};
+    ValueOnlyB.mValue = 22;
+
+    Arche::EntityID EntityB{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, AccelerationComponent, HealthComponent, EnergyComponent, FactionComponent, ValueOnlyComponent>(TransformB, VelocityB, AccelerationB, HealthB, EnergyB, FactionB, ValueOnlyB) };
 
     TransformComponent TransformC{};
     TransformC.mPosition = Vec3{ 1.0f, 1.0f, 1.0f };
@@ -72,26 +78,23 @@ int main(void) {
     FactionComponent FactionC{};
     FactionC.mTeamId = 0;
 
-    Arche::EntityID EntityC{ MainWorld.CreateEntity<TransformComponent, HealthComponent, FactionComponent>(TransformC, HealthC, FactionC) };
+    ValueOnlyComponent ValueOnlyC{};
+    ValueOnlyC.mValue = 33;
+
+    Arche::EntityID EntityC{ MainWorld.CreateEntity<TransformComponent, HealthComponent, FactionComponent, ValueOnlyComponent>(TransformC, HealthC, FactionC, ValueOnlyC) };
 
     Script::LuaScriptFramework Framework{};
     Framework.Initialize(&MainWorld);
     Framework.OpenDefaultLibraries();
 
-    Framework.RegisterComponentUsertype<Vec3>("Vec3", sol::constructors<Vec3()>(), "mX", &Vec3::mX, "mY", &Vec3::mY, "mZ", &Vec3::mZ);
-    Framework.RegisterComponentUsertype<TransformComponent>("TransformComponent", sol::constructors<TransformComponent()>(), "mPosition", &TransformComponent::mPosition, "mScale", &TransformComponent::mScale);
-    Framework.RegisterComponentUsertype<VelocityComponent>("VelocityComponent", sol::constructors<VelocityComponent()>(), "mLinear", &VelocityComponent::mLinear);
-    Framework.RegisterComponentUsertype<AccelerationComponent>("AccelerationComponent", sol::constructors<AccelerationComponent()>(), "mLinear", &AccelerationComponent::mLinear);
-    Framework.RegisterComponentUsertype<HealthComponent>("HealthComponent", sol::constructors<HealthComponent()>(), "mCurrent", &HealthComponent::mCurrent, "mMax", &HealthComponent::mMax);
-    Framework.RegisterComponentUsertype<EnergyComponent>("EnergyComponent", sol::constructors<EnergyComponent()>(), "mCurrent", &EnergyComponent::mCurrent, "mDrainPerSecond", &EnergyComponent::mDrainPerSecond, "mRegenPerSecond", &EnergyComponent::mRegenPerSecond);
-    Framework.RegisterComponentUsertype<FactionComponent>("FactionComponent", sol::constructors<FactionComponent()>(), "mTeamId", &FactionComponent::mTeamId);
-
-    Framework.RegisterComponent<TransformComponent>("TransformComponent");
-    Framework.RegisterComponent<VelocityComponent>("VelocityComponent");
-    Framework.RegisterComponent<AccelerationComponent>("AccelerationComponent");
-    Framework.RegisterComponent<HealthComponent>("HealthComponent");
-    Framework.RegisterComponent<EnergyComponent>("EnergyComponent");
-    Framework.RegisterComponent<FactionComponent>("FactionComponent");
+    Framework.RegisterComponentByDefinition<Vec3>();
+    Framework.RegisterComponentByDefinition<TransformComponent>();
+    Framework.RegisterComponentByDefinition<VelocityComponent>();
+    Framework.RegisterComponentByDefinition<AccelerationComponent>();
+    Framework.RegisterComponentByDefinition<HealthComponent>();
+    Framework.RegisterComponentByDefinition<EnergyComponent>();
+    Framework.RegisterComponentByDefinition<FactionComponent>();
+    Framework.RegisterComponentByDefinition<ValueOnlyComponent>();
 
     bool IsAttachedA{ Framework.AttachScriptFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
     bool IsAttachedB{ Framework.AttachScriptFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
@@ -110,16 +113,19 @@ int main(void) {
     VelocityComponent* FinalVelocityA{ MainWorld.GetComponent<VelocityComponent>(EntityA) };
     HealthComponent* FinalHealthA{ MainWorld.GetComponent<HealthComponent>(EntityA) };
     EnergyComponent* FinalEnergyA{ MainWorld.GetComponent<EnergyComponent>(EntityA) };
+    ValueOnlyComponent* FinalValueOnlyA{ MainWorld.GetComponent<ValueOnlyComponent>(EntityA) };
 
     TransformComponent* FinalTransformB{ MainWorld.GetComponent<TransformComponent>(EntityB) };
     VelocityComponent* FinalVelocityB{ MainWorld.GetComponent<VelocityComponent>(EntityB) };
     HealthComponent* FinalHealthB{ MainWorld.GetComponent<HealthComponent>(EntityB) };
     EnergyComponent* FinalEnergyB{ MainWorld.GetComponent<EnergyComponent>(EntityB) };
+    ValueOnlyComponent* FinalValueOnlyB{ MainWorld.GetComponent<ValueOnlyComponent>(EntityB) };
 
     TransformComponent* FinalTransformC{ MainWorld.GetComponent<TransformComponent>(EntityC) };
     HealthComponent* FinalHealthC{ MainWorld.GetComponent<HealthComponent>(EntityC) };
+    ValueOnlyComponent* FinalValueOnlyC{ MainWorld.GetComponent<ValueOnlyComponent>(EntityC) };
 
-    if (FinalTransformA == nullptr || FinalVelocityA == nullptr || FinalHealthA == nullptr || FinalEnergyA == nullptr || FinalTransformB == nullptr || FinalVelocityB == nullptr || FinalHealthB == nullptr || FinalEnergyB == nullptr || FinalTransformC == nullptr || FinalHealthC == nullptr) {
+    if (FinalTransformA == nullptr || FinalVelocityA == nullptr || FinalHealthA == nullptr || FinalEnergyA == nullptr || FinalValueOnlyA == nullptr || FinalTransformB == nullptr || FinalVelocityB == nullptr || FinalHealthB == nullptr || FinalEnergyB == nullptr || FinalValueOnlyB == nullptr || FinalTransformC == nullptr || FinalHealthC == nullptr || FinalValueOnlyC == nullptr) {
         std::cout << "컴포넌트 조회 실패" << std::endl;
         return 1;
     }
@@ -128,9 +134,9 @@ int main(void) {
     std::cout << "EntityB PositionY: " << FinalTransformB->mPosition.mY << " VelocityY: " << FinalVelocityB->mLinear.mY << " Health: " << FinalHealthB->mCurrent << " Energy: " << FinalEnergyB->mCurrent << std::endl;
     std::cout << "EntityC PositionX: " << FinalTransformC->mPosition.mX << " Health: " << FinalHealthC->mCurrent << std::endl;
 
-    bool IsEntityAValid{ AlmostEqual(FinalTransformA->mPosition.mX, 2.4f, 0.001f) && AlmostEqual(FinalVelocityA->mLinear.mX, 2.5f, 0.001f) && FinalHealthA->mCurrent == 14 && AlmostEqual(FinalEnergyA->mCurrent, 24.0f, 0.001f) };
-    bool IsEntityBValid{ AlmostEqual(FinalTransformB->mPosition.mY, 3.6f, 0.001f) && AlmostEqual(FinalVelocityB->mLinear.mY, 2.5f, 0.001f) && FinalHealthB->mCurrent == 10 && AlmostEqual(FinalEnergyB->mCurrent, 49.0f, 0.001f) };
-    bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 5 };
+    bool IsEntityAValid{ AlmostEqual(FinalTransformA->mPosition.mX, 2.4f, 0.001f) && AlmostEqual(FinalVelocityA->mLinear.mX, 2.5f, 0.001f) && FinalHealthA->mCurrent == 14 && FinalHealthA->IsAlive() && AlmostEqual(FinalEnergyA->mCurrent, 24.0f, 0.001f) && FinalValueOnlyA->mValue == 11 };
+    bool IsEntityBValid{ AlmostEqual(FinalTransformB->mPosition.mY, 3.6f, 0.001f) && AlmostEqual(FinalVelocityB->mLinear.mY, 2.5f, 0.001f) && FinalHealthB->mCurrent == 10 && FinalHealthB->IsAlive() && AlmostEqual(FinalEnergyB->mCurrent, 49.0f, 0.001f) && FinalValueOnlyB->mValue == 22 };
+    bool IsEntityCValid{ AlmostEqual(FinalTransformC->mPosition.mX, 1.0f, 0.001f) && FinalHealthC->mCurrent == 5 && FinalHealthC->IsAlive() && FinalValueOnlyC->mValue == 33 };
 
     if (IsEntityAValid == false || IsEntityBValid == false || IsEntityCValid == false) {
         std::cout << "검증 실패" << std::endl;

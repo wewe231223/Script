@@ -1,7 +1,7 @@
 function Update(This, DeltaSeconds)
     local Health = This:GetComponent("HealthComponent")
 
-    if Health == nil then
+    if Health == nil or Health:IsAlive() == false then
         return
     end
 

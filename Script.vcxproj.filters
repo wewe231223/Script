@@ -42,6 +42,9 @@
     <ClCompile Include="Script\LuaScriptFramework.cpp">
       <Filter>Script</Filter>
     </ClCompile>
+    <ClCompile Include="Script\DemoComponents.cpp">
+      <Filter>Script</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Arche\ArcheType.h">

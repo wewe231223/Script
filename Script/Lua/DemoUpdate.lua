@@ -43,7 +43,7 @@ function Update(This, DeltaSeconds)
         Transform.mPosition.mZ = Transform.mPosition.mZ + Velocity.mLinear.mZ * DeltaSeconds * Damping
     end
 
-    if Health ~= nil then
+    if Health ~= nil and Health:IsAlive() then
         local Damage = 1
 
         if TeamId == 1 then
@@ -55,7 +55,7 @@ function Update(This, DeltaSeconds)
         Health.mCurrent = Clamp(Health.mCurrent - Damage, 0, Health.mMax)
     end
 
-    if Energy ~= nil then
+    if Energy ~= nil and Energy:HasEnergy() then
         local DeltaEnergy = 0.0
 
         if TeamId == 2 then

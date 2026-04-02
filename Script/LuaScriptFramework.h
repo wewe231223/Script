@@ -7,6 +7,7 @@
 #include "sol/sol.hpp"
 #include "Arche/World.h"
 #include "ScriptComponents.h"
+#include "Utility/ComponentRestraint.h"
 
 namespace Script {
     class LuaScriptFramework final {
@@ -68,6 +69,10 @@ namespace Script {
 
         template <TrivialComponent T>
         void RegisterComponent(const std::string& ComponentName);
+
+        template <TrivialComponent T>
+        requires HasLuaComponentDefinition<T>
+        void RegisterComponentByDefinition();
 
         template <typename T, typename... TArgs>
         void RegisterComponentUsertype(const std::string& ComponentName, TArgs&&... UsertypeArguments);

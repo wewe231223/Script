@@ -139,6 +139,7 @@
     <ClCompile Include="Arche\Memory.cpp" />
     <ClCompile Include="Arche\TypeSystem.cpp" />
     <ClCompile Include="Arche\World.cpp" />
+    <ClCompile Include="Script\DemoComponents.cpp" />
     <ClCompile Include="Script\LuaScriptFramework.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
