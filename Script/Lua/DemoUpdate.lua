@@ -2,6 +2,30 @@ HotReloadRevision = 0
 HotReloadPositionBoost = -1.0
 HotReloadValueOffset = 1000
 
+function Awake(This)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + 10
+    end
+end
+
+function OnEnable(This)
+    local Energy = This:GetComponent("EnergyComponent")
+
+    if Energy ~= nil then
+        Energy.mCurrent = Clamp(Energy.mCurrent + 1.0, 0.0, 100.0)
+    end
+end
+
+function Start(This)
+    local Transform = This:GetComponent("TransformComponent")
+
+    if Transform ~= nil then
+        Transform:ResetScale()
+    end
+end
+
 function Clamp(Value, MinValue, MaxValue)
     if Value < MinValue then
         return MinValue
@@ -12,6 +36,24 @@ function Clamp(Value, MinValue, MaxValue)
     end
 
     return Value
+end
+
+function FixedUpdate(This, FixedDeltaSeconds, FixedTick)
+    local Acceleration = This:GetComponent("AccelerationComponent")
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if Acceleration == nil then
+        return
+    end
+
+    local TickBias = 1.0 + (FixedTick % 5) * 0.05
+    Acceleration.mLinear.mX = Acceleration.mLinear.mX * TickBias
+    Acceleration.mLinear.mY = Acceleration.mLinear.mY * TickBias
+    Acceleration.mLinear.mZ = Acceleration.mLinear.mZ * TickBias
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + 100
+    end
 end
 
 function Update(This, DeltaSeconds)
@@ -106,5 +148,30 @@ function Update(This, DeltaSeconds)
         end
 
         ValueOnly.mValue = math.floor(PositionScore + HealthScore + EnergyScore + TeamId + HotReloadValueOffset + HotReloadRevision * 100)
+    end
+end
+
+function LateUpdate(This, DeltaSeconds)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        local LateDelta = math.floor(DeltaSeconds * 10.0)
+        ValueOnly.mValue = ValueOnly.mValue + LateDelta
+    end
+end
+
+function OnDisable(This)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue - 5
+    end
+end
+
+function OnDestroy(This)
+    local Transform = This:GetComponent("TransformComponent")
+
+    if Transform ~= nil then
+        Transform.mPosition.mX = Transform.mPosition.mX + 3
     end
 end

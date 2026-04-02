@@ -41,3 +41,26 @@ function Update(This, DeltaSeconds)
     local MixedValue = Transform.mPosition.mX + Transform.mPosition.mY + Velocity.mLinear.mX + Energy.mCurrent * 0.1 + Trace + HotReloadValueOffset + HotReloadRevision * 100
     ValueOnly.mValue = math.floor(MixedValue)
 end
+
+
+function Start(This)
+    local Energy = This:GetComponent("EnergyComponent")
+
+    if Energy ~= nil then
+        Energy.mCurrent = Clamp(Energy.mCurrent + 2.0, 0.0, 100.0)
+    end
+end
+
+function FixedUpdate(This, FixedDeltaSeconds, FixedTick)
+    local Velocity = This:GetComponent("VelocityComponent")
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if Velocity ~= nil then
+        local TickScale = 1.0 + (FixedTick % 3) * 0.1
+        Velocity.mLinear.mX = Velocity.mLinear.mX + FixedDeltaSeconds * TickScale
+    end
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + 200
+    end
+end

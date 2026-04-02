@@ -19,7 +19,7 @@ namespace Script {
     }
 
     template <TrivialComponent T>
-    T* LuaScriptFramework::ScriptContext::GetComponent() {
+    T* LuaBehaviorFramework::BehaviorContext::GetComponent() {
         if (mWorld == nullptr) {
             return nullptr;
         }
@@ -28,7 +28,7 @@ namespace Script {
     }
 
     template <TrivialComponent T>
-    const T* LuaScriptFramework::ScriptContext::GetComponent() const {
+    const T* LuaBehaviorFramework::BehaviorContext::GetComponent() const {
         if (mWorld == nullptr) {
             return nullptr;
         }
@@ -37,7 +37,7 @@ namespace Script {
     }
 
     template <TrivialComponent T>
-    void LuaScriptFramework::RegisterComponent(const std::string& ComponentName) {
+    void LuaBehaviorFramework::RegisterComponent(const std::string& ComponentName) {
         mComponentGetters[ComponentName] = [](sol::state_view TargetState, Arche::World& TargetWorld, Arche::EntityID TargetEntity) {
             T* TargetComponent{ TargetWorld.GetComponent<T>(TargetEntity) };
 
@@ -51,7 +51,7 @@ namespace Script {
 
     template <TrivialComponent T>
     requires HasLuaComponentDefinition<T>
-    void LuaScriptFramework::RegisterComponentByDefinition() {
+    void LuaBehaviorFramework::RegisterComponentByDefinition() {
         constexpr auto Definition{ LuaComponentDefinitionTraits<T>::Create() };
         RegisterComponentUsertypeByDefinitionImpl(mLuaState, Definition, std::make_index_sequence<std::tuple_size_v<typename decltype(Definition)::FieldTuple>>{});
         RegisterComponent<T>(Definition.mTypeName);
@@ -59,18 +59,28 @@ namespace Script {
 
     template <typename T>
     requires HasLuaTypeDefinition<T>
-    void LuaScriptFramework::RegisterTypeByDefinition() {
+    void LuaBehaviorFramework::RegisterTypeByDefinition() {
         constexpr auto Definition{ LuaTypeDefinitionTraits<T>::Create() };
         RegisterTypeUsertypeByDefinitionImpl(mLuaState, Definition, std::make_index_sequence<std::tuple_size_v<typename decltype(Definition)::BindingTuple>>{});
     }
 
     template <typename T, typename... TArgs>
-    void LuaScriptFramework::RegisterComponentUsertype(const std::string& ComponentName, TArgs&&... UsertypeArguments) {
+    void LuaBehaviorFramework::RegisterComponentUsertype(const std::string& ComponentName, TArgs&&... UsertypeArguments) {
         mLuaState.new_usertype<T>(ComponentName, std::forward<TArgs>(UsertypeArguments)...);
     }
 
     template <typename T, typename... TArgs>
-    void LuaScriptFramework::RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments) {
+    void LuaBehaviorFramework::RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments) {
         mLuaState.new_usertype<T>(TypeName, std::forward<TArgs>(UsertypeArguments)...);
+    }
+
+    template <typename... TArgs>
+    bool LuaBehaviorFramework::RunEntryWithArguments(sol::protected_function& EntryFunction, TArgs&&... Arguments) {
+        if (!EntryFunction.valid()) {
+            return true;
+        }
+
+        sol::protected_function_result EntryResult{ EntryFunction(std::forward<TArgs>(Arguments)...) };
+        return EntryResult.valid();
     }
 }

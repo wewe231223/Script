@@ -36,6 +36,8 @@ void PrintHelp() {
     std::cout << "  energy <A|B|D> <Current> <Drain> <Regen>" << std::endl;
     std::cout << "  faction <A|B|C> <TeamId>" << std::endl;
     std::cout << "  hot-reload <ScriptFileName>" << std::endl;
+    std::cout << "  disable <A|B|C|D>" << std::endl;
+    std::cout << "  destroy <A|B|C|D>" << std::endl;
     std::cout << "  exit" << std::endl;
 }
 
@@ -198,8 +200,9 @@ int main(void) {
 
     Arche::EntityID EntityD{ MainWorld.CreateEntity<TransformComponent, VelocityComponent, EnergyComponent, ValueOnlyComponent>(TransformD, VelocityD, EnergyD, ValueOnlyD) };
 
-    Script::LuaScriptFramework Framework{};
+    Script::LuaBehaviorFramework Framework{};
     Framework.Initialize(&MainWorld);
+    Framework.SetFixedUpdateInterval(1.0f);
     Framework.OpenDefaultLibraries();
 
     Framework.RegisterComponentByDefinition<Vec3>();
@@ -212,10 +215,10 @@ int main(void) {
     Framework.RegisterComponentByDefinition<ValueOnlyComponent>();
     Framework.RegisterTypeByDefinition<SimpleMath::Matrix4x4>();
 
-    bool IsAttachedA{ Framework.AttachScriptFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
-    bool IsAttachedB{ Framework.AttachScriptFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
-    bool IsAttachedC{ Framework.AttachScriptFromFile(EntityC, "Script/Lua/DemoSupport.lua", 3u) };
-    bool IsAttachedD{ Framework.AttachScriptFromFile(EntityD, "Script/Lua/DemoMatrix.lua", 4u) };
+    bool IsAttachedA{ Framework.AttachBehaviorFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
+    bool IsAttachedB{ Framework.AttachBehaviorFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
+    bool IsAttachedC{ Framework.AttachBehaviorFromFile(EntityC, "Script/Lua/DemoSupport.lua", 3u) };
+    bool IsAttachedD{ Framework.AttachBehaviorFromFile(EntityD, "Script/Lua/DemoMatrix.lua", 4u) };
 
     if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false || IsAttachedD == false) {
         std::cout << "[오류] 스크립트 부착 실패" << std::endl;
@@ -264,6 +267,7 @@ int main(void) {
             }
 
             Framework.Update(DeltaTime);
+            Framework.LateUpdate(DeltaTime);
             LastResultMessage = "완료: update 실행";
             continue;
         }
@@ -282,6 +286,7 @@ int main(void) {
 
             while (Index < Count) {
                 Framework.Update(DeltaTime);
+                Framework.LateUpdate(DeltaTime);
                 Index = Index + 1;
             }
 
@@ -415,6 +420,63 @@ int main(void) {
             continue;
         }
 
+
+        if (Command == "disable") {
+            std::string EntityName{};
+            InputStream >> EntityName;
+
+            if (InputStream.fail() || EntityName.empty()) {
+                LastResultMessage = "실패: disable <A|B|C|D> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false) {
+                LastResultMessage = "실패: 유효하지 않은 엔티티입니다.";
+                continue;
+            }
+
+            bool IsDisabled{ Framework.DisableBehavior(TargetEntity) };
+
+            if (!IsDisabled) {
+                LastResultMessage = "실패: disable 실행 실패";
+                continue;
+            }
+
+            LastResultMessage = "완료: disable 실행";
+            continue;
+        }
+
+        if (Command == "destroy") {
+            std::string EntityName{};
+            InputStream >> EntityName;
+
+            if (InputStream.fail() || EntityName.empty()) {
+                LastResultMessage = "실패: destroy <A|B|C|D> 형식으로 입력하세요.";
+                continue;
+            }
+
+            Arche::EntityID TargetEntity{};
+            bool IsEntityValid{ TryResolveEntity(EntityName, EntityA, EntityB, EntityC, EntityD, TargetEntity) };
+
+            if (IsEntityValid == false) {
+                LastResultMessage = "실패: 유효하지 않은 엔티티입니다.";
+                continue;
+            }
+
+            bool IsDestroyed{ Framework.DestroyBehavior(TargetEntity) };
+
+            if (!IsDestroyed) {
+                LastResultMessage = "실패: destroy 실행 실패";
+                continue;
+            }
+
+            LastResultMessage = "완료: destroy 실행";
+            continue;
+        }
+
         if (Command == "exit") {
             return 0;
         }
@@ -428,7 +490,7 @@ int main(void) {
                 continue;
             }
 
-            bool IsReloaded{ Framework.HotReloadScript(ScriptFileName) };
+            bool IsReloaded{ Framework.HotReloadBehavior(ScriptFileName) };
 
             if (!IsReloaded) {
                 LastResultMessage = "실패: hot-reload 실행 실패";

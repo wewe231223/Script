@@ -1,14 +1,14 @@
-﻿#pragma once
+#pragma once
 #include <cstdint>
 #include "Arche/Common.h"
 #include "Utility/ComponentRestraint.h"
 
 ComponentDecl(
-    ScriptInstanceComponent,
+    BehaviorInstanceComponent,
     ComponentFields(
         ComponentField(Arche::EntityID, mOwnerEntity)
-        ComponentField(std::uint32_t, mScriptInstanceId)
-        ComponentField(std::uint32_t, mScriptAssetId)
+        ComponentField(std::uint32_t, mBehaviorInstanceId)
+        ComponentField(std::uint32_t, mBehaviorAssetId)
     ),
     BOOST_PP_SEQ_NIL
 );

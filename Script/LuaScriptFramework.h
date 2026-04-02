@@ -1,35 +1,37 @@
-﻿#pragma once
+#pragma once
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
-#include <string>
-#include <unordered_map>
-#include <functional>
-#include <type_traits>
 #include <filesystem>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
 #include "sol/sol.hpp"
 #include "Arche/World.h"
 #include "ScriptComponents.h"
 #include "Utility/ComponentRestraint.h"
 
 namespace Script {
-    class LuaScriptFramework final {
+    class LuaBehaviorFramework final {
     public:
         using ComponentGetter = std::function<sol::object(sol::state_view, Arche::World&, Arche::EntityID)>;
 
     public:
-        class ScriptContext final {
+        class BehaviorContext final {
         public:
-            ScriptContext();
-            ~ScriptContext();
-
-            ScriptContext(const ScriptContext& Other) = delete;
-            ScriptContext& operator=(const ScriptContext& Other) = delete;
-
-            ScriptContext(ScriptContext&& Other) noexcept;
-            ScriptContext& operator=(ScriptContext&& Other) noexcept;
+            BehaviorContext();
+            ~BehaviorContext();
+            BehaviorContext(const BehaviorContext& Other) = delete;
+            BehaviorContext& operator=(const BehaviorContext& Other) = delete;
+            BehaviorContext(BehaviorContext&& Other) noexcept;
+            BehaviorContext& operator=(BehaviorContext&& Other) noexcept;
 
         public:
-            void Bind(Arche::World* TargetWorld, Arche::EntityID OwnerEntity, LuaScriptFramework* OwnerFramework);
-
+            void Bind(Arche::World* TargetWorld, Arche::EntityID OwnerEntity, LuaBehaviorFramework* OwnerFramework);
             Arche::EntityID GetEntityId() const;
 
             template <TrivialComponent T>
@@ -44,30 +46,42 @@ namespace Script {
         private:
             Arche::World* mWorld{};
             Arche::EntityID mOwnerEntity{};
-            LuaScriptFramework* mOwnerFramework{};
+            LuaBehaviorFramework* mOwnerFramework{};
         };
 
     private:
-        struct RuntimeScriptInstance final {
-            ScriptContext mContext{};
+        struct BehaviorEntries final {
+            sol::protected_function mAwake{};
+            sol::protected_function mOnEnable{};
+            sol::protected_function mStart{};
+            sol::protected_function mUpdate{};
+            sol::protected_function mFixedUpdate{};
+            sol::protected_function mLateUpdate{};
+            sol::protected_function mOnDisable{};
+            sol::protected_function mOnDestroy{};
+        };
+
+        struct RuntimeBehaviorInstance final {
+            BehaviorContext mContext{};
             sol::environment mEnvironment{};
-            sol::protected_function mOnUpdate{};
-            std::string mScriptFileName{};
+            BehaviorEntries mEntries{};
+            std::string mBehaviorFileName{};
+            std::uint32_t mFixedTick{};
+            bool mIsEnabled{ true };
         };
 
     public:
-        LuaScriptFramework();
-        ~LuaScriptFramework();
-
-        LuaScriptFramework(const LuaScriptFramework& Other) = delete;
-        LuaScriptFramework& operator=(const LuaScriptFramework& Other) = delete;
-
-        LuaScriptFramework(LuaScriptFramework&& Other) noexcept = delete;
-        LuaScriptFramework& operator=(LuaScriptFramework&& Other) noexcept = delete;
+        LuaBehaviorFramework();
+        ~LuaBehaviorFramework();
+        LuaBehaviorFramework(const LuaBehaviorFramework& Other) = delete;
+        LuaBehaviorFramework& operator=(const LuaBehaviorFramework& Other) = delete;
+        LuaBehaviorFramework(LuaBehaviorFramework&& Other) noexcept = delete;
+        LuaBehaviorFramework& operator=(LuaBehaviorFramework&& Other) noexcept = delete;
 
     public:
         void Initialize(Arche::World* TargetWorld);
         void OpenDefaultLibraries();
+        void SetFixedUpdateInterval(float FixedDeltaSeconds);
 
         template <TrivialComponent T>
         void RegisterComponent(const std::string& ComponentName);
@@ -86,30 +100,47 @@ namespace Script {
         template <typename T, typename... TArgs>
         void RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments);
 
-        bool AttachScript(Arche::EntityID TargetEntity, const std::string& ScriptSource, std::uint32_t ScriptAssetId);
-        bool AttachScriptFromFile(Arche::EntityID TargetEntity, const std::string& ScriptFilePath, std::uint32_t ScriptAssetId);
-        bool HotReloadScript(const std::string& ScriptFileName);
-        void DetachScript(Arche::EntityID TargetEntity);
+        bool AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId);
+        bool AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId);
+        bool HotReloadBehavior(const std::string& BehaviorFileName);
+        bool DisableBehavior(Arche::EntityID TargetEntity);
+        bool DestroyBehavior(Arche::EntityID TargetEntity);
+
+        void DetachBehavior(Arche::EntityID TargetEntity);
         void Update(float DeltaSeconds);
+        void FixedUpdate(float FixedDeltaSeconds);
+        void LateUpdate(float DeltaSeconds);
 
         sol::state& GetState();
         const sol::state& GetState() const;
 
     private:
-        RuntimeScriptInstance* FindRuntimeInstance(Arche::EntityID TargetEntity);
-        const RuntimeScriptInstance* FindRuntimeInstance(Arche::EntityID TargetEntity) const;
+        RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity);
+        const RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity) const;
+        std::uint32_t GenerateBehaviorInstanceId();
+        bool ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const;
 
-        std::uint32_t GenerateScriptInstanceId();
-        bool ReadScriptSourceFromFilePath(const std::string& ScriptFilePath, std::string& OutScriptSource) const;
-        void BindContextToEnvironment(RuntimeScriptInstance& TargetInstance);
+        void StartFixedUpdateThread();
+        void StopFixedUpdateThread();
+        void FixedUpdateThreadMain();
+        void BindContextToEnvironment(RuntimeBehaviorInstance& TargetInstance);
+        void ResolveBehaviorEntries(RuntimeBehaviorInstance& TargetInstance);
+
+        template <typename... TArgs>
+        bool RunEntryWithArguments(sol::protected_function& EntryFunction, TArgs&&... Arguments);
 
     private:
         Arche::World* mWorld{};
         sol::state mLuaState{};
         std::unordered_map<std::string, ComponentGetter> mComponentGetters{};
-        std::unordered_map<std::string, std::string> mScriptFilePaths{};
-        std::unordered_map<std::uint32_t, RuntimeScriptInstance> mRuntimeInstances{};
-        std::uint32_t mLastIssuedScriptInstanceId{};
+        std::unordered_map<std::string, std::string> mBehaviorFilePaths{};
+        std::unordered_map<std::uint32_t, RuntimeBehaviorInstance> mRuntimeInstances{};
+        std::uint32_t mLastIssuedBehaviorInstanceId{};
+        float mFixedDeltaSeconds{ 1.0f };
+        std::thread mFixedUpdateThread{};
+        std::atomic<bool> mIsFixedUpdateThreadRunning{ false };
+        std::condition_variable mFixedUpdateCondition{};
+        std::mutex mRuntimeMutex{};
     };
 }
 

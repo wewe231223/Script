@@ -63,3 +63,29 @@ function Update(This, DeltaSeconds)
         ValueOnly.mValue = math.floor(Health.mCurrent * 10 + PositionScore + TeamId + HotReloadValueOffset + HotReloadRevision * 100)
     end
 end
+
+
+function Awake(This)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + 5
+    end
+end
+
+function LateUpdate(This, DeltaSeconds)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + math.floor(DeltaSeconds)
+    end
+end
+
+
+function FixedUpdate(This, FixedDeltaSeconds, FixedTick)
+    local ValueOnly = This:GetComponent("ValueOnlyComponent")
+
+    if ValueOnly ~= nil then
+        ValueOnly.mValue = ValueOnly.mValue + 50
+    end
+end
