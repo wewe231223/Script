@@ -102,6 +102,7 @@ namespace Script {
           mBehaviorFilePaths{},
           mRuntimeInstances{},
           mLastIssuedBehaviorInstanceId{},
+          mLastIssuedBehaviorAssetId{},
           mFixedDeltaSeconds{ 1.0f },
           mFixedUpdateThread{},
           mIsFixedUpdateThreadRunning{ false },
@@ -141,7 +142,7 @@ namespace Script {
         return BehaviorOperationResult::Success();
     }
 
-    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
         std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
 
@@ -151,13 +152,14 @@ namespace Script {
 
         BehaviorInstanceComponent* ExistingComponent{ mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity) };
 
-        if (ExistingComponent != nullptr && ExistingComponent->mBehaviorInstanceId != 0u && mRuntimeInstances.find(ExistingComponent->mBehaviorInstanceId) != mRuntimeInstances.end()) {
+        if (ExistingComponent != nullptr && IsValidBehaviorInstanceId(ExistingComponent->mBehaviorInstanceId) && mRuntimeInstances.find(ExistingComponent->mBehaviorInstanceId) != mRuntimeInstances.end()) {
             return HandleFailure(BehaviorErrorCode::BehaviorAlreadyAttached, "Behavior is already attached to this entity.", TargetEntity, std::string{});
         }
 
         if (ExistingComponent == nullptr) {
             BehaviorInstanceComponent NewComponent{};
             NewComponent.mOwnerEntity = TargetEntity;
+            NewComponent.mBehaviorInstanceId = InvalidBehaviorInstanceId;
             mWorld->AddComponent<BehaviorInstanceComponent>(TargetEntity, NewComponent);
             ExistingComponent = mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity);
         }
@@ -169,7 +171,7 @@ namespace Script {
         std::uint32_t BehaviorInstanceId{ GenerateBehaviorInstanceId() };
         ExistingComponent->mOwnerEntity = TargetEntity;
         ExistingComponent->mBehaviorInstanceId = BehaviorInstanceId;
-        ExistingComponent->mBehaviorAssetId = BehaviorAssetId;
+        ExistingComponent->mBehaviorAssetId = GenerateBehaviorAssetId();
 
         RuntimeBehaviorInstance NewRuntimeInstance{};
         NewRuntimeInstance.mContext.Bind(mWorld, TargetEntity, this);
@@ -210,7 +212,7 @@ namespace Script {
         return BehaviorOperationResult::Success();
     }
 
-    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath) {
         std::string BehaviorSource{};
         BehaviorOperationResult ReadResult{ ReadBehaviorSourceFromFilePath(BehaviorFilePath, BehaviorSource) };
 
@@ -218,7 +220,7 @@ namespace Script {
             return ReadResult;
         }
 
-        BehaviorOperationResult AttachResult{ AttachBehavior(TargetEntity, BehaviorSource, BehaviorAssetId) };
+        BehaviorOperationResult AttachResult{ AttachBehavior(TargetEntity, BehaviorSource) };
 
         if (!AttachResult) {
             return AttachResult;
@@ -455,7 +457,7 @@ namespace Script {
             return nullptr;
         }
 
-        if (InstanceComponent->mBehaviorInstanceId == 0u) {
+        if (!IsValidBehaviorInstanceId(InstanceComponent->mBehaviorInstanceId)) {
             return nullptr;
         }
 
@@ -472,9 +474,24 @@ namespace Script {
         return const_cast<LuaBehaviorFramework*>(this)->FindRuntimeInstance(TargetEntity);
     }
 
+    bool LuaBehaviorFramework::IsValidBehaviorInstanceId(std::uint32_t BehaviorInstanceId) const {
+        return BehaviorInstanceId != 0u && BehaviorInstanceId != InvalidBehaviorInstanceId;
+    }
+
     std::uint32_t LuaBehaviorFramework::GenerateBehaviorInstanceId() {
-        ++mLastIssuedBehaviorInstanceId;
-        return mLastIssuedBehaviorInstanceId;
+        std::uint32_t NextBehaviorInstanceId{ mLastIssuedBehaviorInstanceId };
+
+        do {
+            NextBehaviorInstanceId = NextBehaviorInstanceId + 1u;
+        } while (!IsValidBehaviorInstanceId(NextBehaviorInstanceId) || mRuntimeInstances.find(NextBehaviorInstanceId) != mRuntimeInstances.end());
+
+        mLastIssuedBehaviorInstanceId = NextBehaviorInstanceId;
+        return NextBehaviorInstanceId;
+    }
+
+    std::uint32_t LuaBehaviorFramework::GenerateBehaviorAssetId() {
+        mLastIssuedBehaviorAssetId = mLastIssuedBehaviorAssetId + 1u;
+        return mLastIssuedBehaviorAssetId;
     }
 
     LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const {
@@ -519,7 +536,7 @@ namespace Script {
         }
 
         ExistingComponent->mOwnerEntity = TargetEntity;
-        ExistingComponent->mBehaviorInstanceId = 0u;
+        ExistingComponent->mBehaviorInstanceId = InvalidBehaviorInstanceId;
         ExistingComponent->mBehaviorAssetId = BehaviorAssetId;
     }
 

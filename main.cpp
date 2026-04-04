@@ -215,10 +215,10 @@ int main(void) {
     Framework.RegisterComponentByDefinition<ValueOnlyComponent>();
     Framework.RegisterTypeByDefinition<SimpleMath::Matrix4x4>();
 
-    bool IsAttachedA{ Framework.AttachBehaviorFromFile(EntityA, "Script/Lua/DemoUpdate.lua", 1u) };
-    bool IsAttachedB{ Framework.AttachBehaviorFromFile(EntityB, "Script/Lua/DemoUpdate.lua", 2u) };
-    bool IsAttachedC{ Framework.AttachBehaviorFromFile(EntityC, "Script/Lua/DemoSupport.lua", 3u) };
-    bool IsAttachedD{ Framework.AttachBehaviorFromFile(EntityD, "Script/Lua/DemoMatrix.lua", 4u) };
+    bool IsAttachedA{ Framework.AttachBehaviorFromFile(EntityA, "Script/Lua/DemoUpdate.lua") };
+    bool IsAttachedB{ Framework.AttachBehaviorFromFile(EntityB, "Script/Lua/DemoUpdate.lua") };
+    bool IsAttachedC{ Framework.AttachBehaviorFromFile(EntityC, "Script/Lua/DemoSupport.lua") };
+    bool IsAttachedD{ Framework.AttachBehaviorFromFile(EntityD, "Script/Lua/DemoMatrix.lua") };
 
     if (IsAttachedA == false || IsAttachedB == false || IsAttachedC == false || IsAttachedD == false) {
         std::cout << "[오류] 스크립트 부착 실패" << std::endl;

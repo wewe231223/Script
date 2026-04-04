@@ -5,11 +5,15 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <type_traits>
 #include <unordered_map>
+#ifdef max
+#undef max
+#endif
 #include "sol/sol.hpp"
 #include "Arche/World.h"
 #include "ScriptComponents.h"
@@ -102,6 +106,8 @@ namespace Script {
         };
 
     public:
+        static constexpr std::uint32_t InvalidBehaviorInstanceId{ std::numeric_limits<std::uint32_t>::max() };
+
         LuaBehaviorFramework();
         ~LuaBehaviorFramework();
         LuaBehaviorFramework(const LuaBehaviorFramework& Other) = delete;
@@ -131,8 +137,8 @@ namespace Script {
         template <typename T, typename... TArgs>
         void RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments);
 
-        BehaviorOperationResult AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId);
-        BehaviorOperationResult AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId);
+        BehaviorOperationResult AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource);
+        BehaviorOperationResult AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath);
         BehaviorOperationResult HotReloadBehavior(const std::string& BehaviorFileName);
         BehaviorOperationResult DisableBehavior(Arche::EntityID TargetEntity);
         BehaviorOperationResult DestroyBehavior(Arche::EntityID TargetEntity);
@@ -150,7 +156,9 @@ namespace Script {
     private:
         RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity);
         const RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity) const;
+        bool IsValidBehaviorInstanceId(std::uint32_t BehaviorInstanceId) const;
         std::uint32_t GenerateBehaviorInstanceId();
+        std::uint32_t GenerateBehaviorAssetId();
         BehaviorOperationResult ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const;
 
         BehaviorOperationResult HandleFailure(BehaviorErrorCode Code, const std::string& Message, Arche::EntityID Entity, const std::string& BehaviorFilePath);
@@ -173,6 +181,7 @@ namespace Script {
         std::unordered_map<std::string, std::string> mBehaviorFilePaths{};
         std::unordered_map<std::uint32_t, RuntimeBehaviorInstance> mRuntimeInstances{};
         std::uint32_t mLastIssuedBehaviorInstanceId{};
+        std::uint32_t mLastIssuedBehaviorAssetId{};
         float mFixedDeltaSeconds{ 1.0f };
         std::thread mFixedUpdateThread{};
         std::atomic<bool> mIsFixedUpdateThreadRunning{ false };
