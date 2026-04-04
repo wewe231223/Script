@@ -42,6 +42,7 @@
 #include <concepts>
 #include <tuple>
 #include <utility>
+#include <vector>
 #include <type_traits>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/seq.hpp>
@@ -122,6 +123,8 @@ concept HasLuaTypeDefinition = requires {
 #define ComponentDecl(TypeName, FieldsSeq, MethodsSeq) \
 struct TypeName { \
     BOOST_PP_SEQ_FOR_EACH(COMPONENT_DECL_DECLARE_FIELD_HELPER, _, FieldsSeq) \
+    static const char* GetComponentInspectionName(); \
+    void BuildComponentInspectionFields(std::vector<Game::ComponentInspectionField>& OutFields) const; \
     BOOST_PP_SEQ_FOR_EACH(COMPONENT_DECL_DECLARE_METHOD_HELPER, _, MethodsSeq) \
 }; \
 static_assert(TrivialComponent<TypeName>, \
