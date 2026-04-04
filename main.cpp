@@ -1,4 +1,6 @@
 ﻿#include <cstdlib>
+#include <array>
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -110,6 +112,38 @@ void RenderConsole(Arche::World& MainWorld, const Arche::EntityID EntityA, const
     std::cout << "\n[이전 결과] " << LastResultMessage << std::endl;
 }
 
+bool RunLuaArrayBindingSmokeTest(Script::LuaBehaviorFramework& Framework) {
+    sol::state& LuaState{ Framework.GetState() };
+    sol::load_result LoadResult{ LuaState.load_file("Script/Lua/DemoArray.lua") };
+
+    if (!LoadResult.valid()) {
+        return false;
+    }
+
+    sol::protected_function LoadedChunk{ LoadResult };
+    sol::protected_function_result ExecuteResult{ LoadedChunk() };
+
+    if (!ExecuteResult.valid()) {
+        return false;
+    }
+
+    sol::object FunctionObject{ LuaState["CreateArraySample"] };
+
+    if (FunctionObject.is<sol::protected_function>() == false) {
+        return false;
+    }
+
+    sol::protected_function CreateArraySample{ FunctionObject.as<sol::protected_function>() };
+    sol::protected_function_result SampleResult{ CreateArraySample() };
+
+    if (!SampleResult.valid()) {
+        return false;
+    }
+
+    double Sum{ SampleResult.get<double>() };
+    return std::fabs(Sum - 7.5) < 0.0001;
+}
+
 int main(void) {
     Arche::World MainWorld{};
 
@@ -214,6 +248,14 @@ int main(void) {
     Framework.RegisterComponentByDefinition<FactionComponent>();
     Framework.RegisterComponentByDefinition<ValueOnlyComponent>();
     Framework.RegisterTypeByDefinition<SimpleMath::Matrix4x4>();
+    Framework.RegisterTypeByDefinition<std::array<float, 3>>();
+
+    bool IsArrayBindingValid{ RunLuaArrayBindingSmokeTest(Framework) };
+
+    if (IsArrayBindingValid == false) {
+        std::cout << "[오류] Lua std::array 바인딩 테스트 실패" << std::endl;
+        return 1;
+    }
 
     bool IsAttachedA{ Framework.AttachBehaviorFromFile(EntityA, "Script/Lua/DemoUpdate.lua") };
     bool IsAttachedB{ Framework.AttachBehaviorFromFile(EntityB, "Script/Lua/DemoUpdate.lua") };

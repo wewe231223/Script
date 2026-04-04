@@ -136,3 +136,5 @@ LuaTypeDefinitionDeclWithName(
         ComponentMethod(void SetDiagonal(float Value), SetDiagonal)
     )
 );
+
+LuaStdArrayTypeDefinitionDeclWithName(float, 3, "Float3Array");

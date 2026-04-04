@@ -18,6 +18,50 @@ namespace Script {
         ApplyComponentBindingsToUsertypeImpl(Usertype, Definition.mBindings, std::index_sequence<TIndices...>{});
     }
 
+    template <typename TElement, std::size_t TElementCount>
+    void RegisterArrayTypeUsertypeByDefinitionImpl(sol::state& LuaState, const LuaArrayTypeDefinition<TElement, TElementCount>& Definition) {
+        LuaState.new_usertype<std::array<TElement, TElementCount>>(
+            Definition.mTypeName,
+            sol::constructors<std::array<TElement, TElementCount>()>(),
+            sol::meta_function::index,
+            [](const std::array<TElement, TElementCount>& TargetArray, std::size_t LuaIndex) -> TElement {
+                if (LuaIndex >= TElementCount) {
+                    return TElement{};
+                }
+
+                return TargetArray[LuaIndex];
+            },
+            sol::meta_function::new_index,
+            [](std::array<TElement, TElementCount>& TargetArray, std::size_t LuaIndex, const TElement& Value) {
+                if (LuaIndex >= TElementCount) {
+                    return;
+                }
+
+                TargetArray[LuaIndex] = Value;
+            },
+            "Get",
+            [](const std::array<TElement, TElementCount>& TargetArray, std::size_t Index) -> TElement {
+                if (Index >= TElementCount) {
+                    return TElement{};
+                }
+
+                return TargetArray[Index];
+            },
+            "Set",
+            [](std::array<TElement, TElementCount>& TargetArray, std::size_t Index, const TElement& Value) {
+                if (Index >= TElementCount) {
+                    return;
+                }
+
+                TargetArray[Index] = Value;
+            },
+            "Size",
+            []() -> std::size_t {
+                return static_cast<std::size_t>(TElementCount);
+            }
+        );
+    }
+
     template <TrivialComponent T>
     T* LuaBehaviorFramework::BehaviorContext::GetComponent() {
         if (mWorld == nullptr || mOwnerFramework == nullptr) {
@@ -63,7 +107,13 @@ namespace Script {
     requires HasLuaTypeDefinition<T>
     void LuaBehaviorFramework::RegisterTypeByDefinition() {
         constexpr auto Definition{ LuaTypeDefinitionTraits<T>::Create() };
-        RegisterTypeUsertypeByDefinitionImpl(mLuaState, Definition, std::make_index_sequence<std::tuple_size_v<typename decltype(Definition)::BindingTuple>>{});
+
+        if constexpr (requires { typename decltype(Definition)::BindingTuple; }) {
+            RegisterTypeUsertypeByDefinitionImpl(mLuaState, Definition, std::make_index_sequence<std::tuple_size_v<typename decltype(Definition)::BindingTuple>>{});
+        }
+        else {
+            RegisterArrayTypeUsertypeByDefinitionImpl(mLuaState, Definition);
+        }
     }
 
     template <typename T, typename... TArgs>

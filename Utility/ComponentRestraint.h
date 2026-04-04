@@ -78,6 +78,7 @@
 +--------------------------------------------------------------------------------------------------+
 */
 #pragma once
+#include <array>
 #include <concepts>
 #include <tuple>
 #include <utility>
@@ -140,6 +141,20 @@ constexpr LuaTypeDefinition<TType, TMemberPointers...> MakeLuaTypeDefinition(con
     return Definition;
 }
 
+template <typename TElement, std::size_t TElementCount>
+struct LuaArrayTypeDefinition final {
+    using ValueType = std::array<TElement, TElementCount>;
+
+    const char* mTypeName{};
+};
+
+template <typename TElement, std::size_t TElementCount>
+constexpr LuaArrayTypeDefinition<TElement, TElementCount> MakeLuaArrayTypeDefinition(const char* TypeName) {
+    LuaArrayTypeDefinition<TElement, TElementCount> Definition{};
+    Definition.mTypeName = TypeName;
+    return Definition;
+}
+
 template <typename TType>
 struct LuaTypeDefinitionTraits;
 
@@ -185,3 +200,10 @@ struct LuaTypeDefinitionTraits<TypeName> final { \
 }
 
 #define LuaTypeDefinitionDecl(TypeName, FieldsSeq, MethodsSeq) LuaTypeDefinitionDeclWithName(TypeName, BOOST_PP_STRINGIZE(TypeName), FieldsSeq, MethodsSeq)
+#define LuaStdArrayTypeDefinitionDeclWithName(ElementType, ElementCount, LuaTypeName) \
+template <> \
+struct LuaTypeDefinitionTraits<std::array<ElementType, ElementCount>> final { \
+    static constexpr auto Create() { \
+        return MakeLuaArrayTypeDefinition<ElementType, ElementCount>(LuaTypeName); \
+    } \
+}
