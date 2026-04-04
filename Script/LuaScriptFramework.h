@@ -15,9 +15,12 @@
 #undef max
 #endif
 #include "sol/sol.hpp"
-#include "Arche/World.h"
 #include "ScriptComponents.h"
 #include "Utility/ComponentRestraint.h"
+
+namespace Arche {
+    class World;
+}
 
 namespace Script {
     class LuaBehaviorFramework final {

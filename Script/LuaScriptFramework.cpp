@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include "Arche/World.h"
 #include "LuaScriptFramework.h"
 
 namespace Script {
