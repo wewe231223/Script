@@ -1,10 +1,31 @@
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include "LuaScriptFramework.h"
 
 namespace Script {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::BehaviorOperationResult::Success() {
+        BehaviorOperationResult Result{};
+        Result.mIsSuccess = true;
+        return Result;
+    }
+
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::BehaviorOperationResult::Failure(BehaviorErrorCode Code, const std::string& Message, Arche::EntityID Entity, const std::string& BehaviorFilePath) {
+        BehaviorOperationResult Result{};
+        Result.mIsSuccess = false;
+        Result.mError.mCode = Code;
+        Result.mError.mMessage = Message;
+        Result.mError.mEntity = Entity;
+        Result.mError.mBehaviorFilePath = BehaviorFilePath;
+        return Result;
+    }
+
+    LuaBehaviorFramework::BehaviorOperationResult::operator bool() const {
+        return mIsSuccess;
+    }
+
     LuaBehaviorFramework::BehaviorContext::BehaviorContext()
         : mWorld{},
           mOwnerEntity{},
@@ -46,6 +67,7 @@ namespace Script {
             return false;
         }
 
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mOwnerFramework->mWorldFlowMutex };
         const std::unordered_map<std::string, ComponentGetter>& Getters{ mOwnerFramework->mComponentGetters };
         auto GetterIt{ Getters.find(ComponentName) };
 
@@ -62,6 +84,7 @@ namespace Script {
             return sol::object{};
         }
 
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mOwnerFramework->mWorldFlowMutex };
         std::unordered_map<std::string, ComponentGetter>& Getters{ mOwnerFramework->mComponentGetters };
         auto GetterIt{ Getters.find(ComponentName) };
 
@@ -83,7 +106,9 @@ namespace Script {
           mFixedUpdateThread{},
           mIsFixedUpdateThreadRunning{ false },
           mFixedUpdateCondition{},
-          mRuntimeMutex{} {
+          mRuntimeMutex{},
+          mWorldFlowMutex{},
+          mLastError{} {
     }
 
     LuaBehaviorFramework::~LuaBehaviorFramework() {
@@ -92,6 +117,7 @@ namespace Script {
 
     void LuaBehaviorFramework::Initialize(Arche::World* TargetWorld) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
         mWorld = TargetWorld;
         mLuaState.new_usertype<BehaviorContext>("BehaviorContext", "GetEntityId", &BehaviorContext::GetEntityId, "GetComponent", static_cast<sol::object(BehaviorContext::*)(const std::string&)>(&BehaviorContext::GetComponent), "HasComponent", &BehaviorContext::HasComponent);
         StartFixedUpdateThread();
@@ -102,34 +128,48 @@ namespace Script {
         mLuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::package);
     }
 
-    void LuaBehaviorFramework::SetFixedUpdateInterval(float FixedDeltaSeconds) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::SetFixedUpdateInterval(float FixedDeltaSeconds) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
 
         if (FixedDeltaSeconds <= 0.0f) {
-            return;
+            return HandleFailure(BehaviorErrorCode::InvalidFixedDeltaSeconds, "Fixed delta seconds must be greater than zero.", Arche::EntityID{}, std::string{});
         }
 
         mFixedDeltaSeconds = FixedDeltaSeconds;
         mFixedUpdateCondition.notify_all();
+        ClearError();
+        return BehaviorOperationResult::Success();
     }
 
-    bool LuaBehaviorFramework::AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
 
         if (mWorld == nullptr) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::WorldNotInitialized, "World is not initialized.", TargetEntity, std::string{});
         }
 
-        if (mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity) != nullptr) {
-            return false;
+        BehaviorInstanceComponent* ExistingComponent{ mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity) };
+
+        if (ExistingComponent != nullptr && ExistingComponent->mBehaviorInstanceId != 0u && mRuntimeInstances.find(ExistingComponent->mBehaviorInstanceId) != mRuntimeInstances.end()) {
+            return HandleFailure(BehaviorErrorCode::BehaviorAlreadyAttached, "Behavior is already attached to this entity.", TargetEntity, std::string{});
+        }
+
+        if (ExistingComponent == nullptr) {
+            BehaviorInstanceComponent NewComponent{};
+            NewComponent.mOwnerEntity = TargetEntity;
+            mWorld->AddComponent<BehaviorInstanceComponent>(TargetEntity, NewComponent);
+            ExistingComponent = mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity);
+        }
+
+        if (ExistingComponent == nullptr) {
+            return HandleFailure(BehaviorErrorCode::RuntimeStateMismatch, "Behavior component could not be prepared for attachment.", TargetEntity, std::string{});
         }
 
         std::uint32_t BehaviorInstanceId{ GenerateBehaviorInstanceId() };
-        BehaviorInstanceComponent NewComponent{};
-        NewComponent.mOwnerEntity = TargetEntity;
-        NewComponent.mBehaviorInstanceId = BehaviorInstanceId;
-        NewComponent.mBehaviorAssetId = BehaviorAssetId;
-        mWorld->AddComponent<BehaviorInstanceComponent>(TargetEntity, NewComponent);
+        ExistingComponent->mOwnerEntity = TargetEntity;
+        ExistingComponent->mBehaviorInstanceId = BehaviorInstanceId;
+        ExistingComponent->mBehaviorAssetId = BehaviorAssetId;
 
         RuntimeBehaviorInstance NewRuntimeInstance{};
         NewRuntimeInstance.mContext.Bind(mWorld, TargetEntity, this);
@@ -139,57 +179,79 @@ namespace Script {
         sol::protected_function_result LoadResult{ mLuaState.safe_script(BehaviorSource, NewRuntimeInstance.mEnvironment, sol::script_pass_on_error) };
 
         if (!LoadResult.valid()) {
-            return false;
+            ResetBehaviorComponent(TargetEntity, 0u);
+            return HandleFailure(BehaviorErrorCode::LuaLoadFailed, std::string{ LoadResult.get<sol::error>().what() }, TargetEntity, std::string{});
         }
 
         ResolveBehaviorEntries(NewRuntimeInstance);
-        RunEntryWithArguments(NewRuntimeInstance.mEntries.mAwake, &NewRuntimeInstance.mContext);
-        RunEntryWithArguments(NewRuntimeInstance.mEntries.mOnEnable, &NewRuntimeInstance.mContext);
-        RunEntryWithArguments(NewRuntimeInstance.mEntries.mStart, &NewRuntimeInstance.mContext);
+        BehaviorOperationResult AwakeResult{ RunEntryWithArguments(NewRuntimeInstance.mEntries.mAwake, TargetEntity, std::string{}, &NewRuntimeInstance.mContext) };
 
-        mRuntimeInstances.emplace(BehaviorInstanceId, std::move(NewRuntimeInstance));
-        return true;
-    }
-
-    bool LuaBehaviorFramework::AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId) {
-        std::string BehaviorSource{};
-
-        if (!ReadBehaviorSourceFromFilePath(BehaviorFilePath, BehaviorSource)) {
-            return false;
+        if (!AwakeResult) {
+            ResetBehaviorComponent(TargetEntity, 0u);
+            return AwakeResult;
         }
 
-        if (!AttachBehavior(TargetEntity, BehaviorSource, BehaviorAssetId)) {
-            return false;
+        BehaviorOperationResult EnableResult{ RunEntryWithArguments(NewRuntimeInstance.mEntries.mOnEnable, TargetEntity, std::string{}, &NewRuntimeInstance.mContext) };
+
+        if (!EnableResult) {
+            ResetBehaviorComponent(TargetEntity, 0u);
+            return EnableResult;
+        }
+
+        BehaviorOperationResult StartResult{ RunEntryWithArguments(NewRuntimeInstance.mEntries.mStart, TargetEntity, std::string{}, &NewRuntimeInstance.mContext) };
+
+        if (!StartResult) {
+            ResetBehaviorComponent(TargetEntity, 0u);
+            return StartResult;
+        }
+
+        mRuntimeInstances.emplace(BehaviorInstanceId, std::move(NewRuntimeInstance));
+        ClearError();
+        return BehaviorOperationResult::Success();
+    }
+
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId) {
+        std::string BehaviorSource{};
+        BehaviorOperationResult ReadResult{ ReadBehaviorSourceFromFilePath(BehaviorFilePath, BehaviorSource) };
+
+        if (!ReadResult) {
+            return ReadResult;
+        }
+
+        BehaviorOperationResult AttachResult{ AttachBehavior(TargetEntity, BehaviorSource, BehaviorAssetId) };
+
+        if (!AttachResult) {
+            return AttachResult;
         }
 
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
         RuntimeBehaviorInstance* RuntimeInstance{ FindRuntimeInstance(TargetEntity) };
 
         if (RuntimeInstance == nullptr) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::RuntimeStateMismatch, "Runtime instance was not created for attached behavior.", TargetEntity, BehaviorFilePath);
         }
 
         std::filesystem::path FullPath{ BehaviorFilePath };
         std::string BehaviorFileName{ FullPath.filename().string() };
         RuntimeInstance->mBehaviorFileName = BehaviorFileName;
         mBehaviorFilePaths[BehaviorFileName] = BehaviorFilePath;
-        return true;
+        ClearError();
+        return BehaviorOperationResult::Success();
     }
 
-    bool LuaBehaviorFramework::HotReloadBehavior(const std::string& BehaviorFileName) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::HotReloadBehavior(const std::string& BehaviorFileName) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
         auto PathIt{ mBehaviorFilePaths.find(BehaviorFileName) };
 
         if (PathIt == mBehaviorFilePaths.end()) {
-            std::string FallbackPath{ "Script/Lua/" + BehaviorFileName };
-            mBehaviorFilePaths[BehaviorFileName] = FallbackPath;
-            PathIt = mBehaviorFilePaths.find(BehaviorFileName);
+            return HandleFailure(BehaviorErrorCode::InvalidBehaviorPath, "Behavior file name is not registered.", Arche::EntityID{}, BehaviorFileName);
         }
 
         std::string BehaviorSource{};
+        BehaviorOperationResult ReadResult{ ReadBehaviorSourceFromFilePath(PathIt->second, BehaviorSource) };
 
-        if (!ReadBehaviorSourceFromFilePath(PathIt->second, BehaviorSource)) {
-            return false;
+        if (!ReadResult) {
+            return ReadResult;
         }
 
         bool IsEveryReloadSucceeded{ true };
@@ -202,75 +264,122 @@ namespace Script {
                 continue;
             }
 
-            RunEntryWithArguments(RuntimeInstance.mEntries.mOnDisable, &RuntimeInstance.mContext);
+            BehaviorOperationResult DisableResult{ RunEntryWithArguments(RuntimeInstance.mEntries.mOnDisable, RuntimeInstance.mContext.GetEntityId(), PathIt->second, &RuntimeInstance.mContext) };
+
+            if (!DisableResult) {
+                IsEveryReloadSucceeded = false;
+                continue;
+            }
+
             RuntimeInstance.mEnvironment = sol::environment(mLuaState, sol::create, mLuaState.globals());
             BindContextToEnvironment(RuntimeInstance);
 
             sol::protected_function_result LoadResult{ mLuaState.safe_script(BehaviorSource, RuntimeInstance.mEnvironment, sol::script_pass_on_error) };
 
             if (!LoadResult.valid()) {
+                HandleFailure(BehaviorErrorCode::LuaLoadFailed, std::string{ LoadResult.get<sol::error>().what() }, RuntimeInstance.mContext.GetEntityId(), PathIt->second);
                 IsEveryReloadSucceeded = false;
                 continue;
             }
 
             ResolveBehaviorEntries(RuntimeInstance);
-            RunEntryWithArguments(RuntimeInstance.mEntries.mAwake, &RuntimeInstance.mContext);
-            RunEntryWithArguments(RuntimeInstance.mEntries.mOnEnable, &RuntimeInstance.mContext);
-            RunEntryWithArguments(RuntimeInstance.mEntries.mStart, &RuntimeInstance.mContext);
+            BehaviorOperationResult AwakeResult{ RunEntryWithArguments(RuntimeInstance.mEntries.mAwake, RuntimeInstance.mContext.GetEntityId(), PathIt->second, &RuntimeInstance.mContext) };
+
+            if (!AwakeResult) {
+                IsEveryReloadSucceeded = false;
+                continue;
+            }
+
+            BehaviorOperationResult EnableResult{ RunEntryWithArguments(RuntimeInstance.mEntries.mOnEnable, RuntimeInstance.mContext.GetEntityId(), PathIt->second, &RuntimeInstance.mContext) };
+
+            if (!EnableResult) {
+                IsEveryReloadSucceeded = false;
+                continue;
+            }
+
+            BehaviorOperationResult StartResult{ RunEntryWithArguments(RuntimeInstance.mEntries.mStart, RuntimeInstance.mContext.GetEntityId(), PathIt->second, &RuntimeInstance.mContext) };
+
+            if (!StartResult) {
+                IsEveryReloadSucceeded = false;
+                continue;
+            }
+
             RuntimeInstance.mIsEnabled = true;
             ReloadedCount = ReloadedCount + 1;
         }
 
-        return ReloadedCount > 0 && IsEveryReloadSucceeded;
+        if (ReloadedCount == 0 || !IsEveryReloadSucceeded) {
+            return HandleFailure(BehaviorErrorCode::LuaRuntimeFailed, "One or more runtime instances failed during hot reload.", Arche::EntityID{}, PathIt->second);
+        }
+
+        ClearError();
+        return BehaviorOperationResult::Success();
     }
 
-
-    bool LuaBehaviorFramework::DisableBehavior(Arche::EntityID TargetEntity) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::DisableBehavior(Arche::EntityID TargetEntity) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
         RuntimeBehaviorInstance* RuntimeInstance{ FindRuntimeInstance(TargetEntity) };
 
         if (RuntimeInstance == nullptr) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::BehaviorNotFound, "Behavior runtime instance was not found.", TargetEntity, std::string{});
         }
 
         if (!RuntimeInstance->mIsEnabled) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::BehaviorNotFound, "Behavior is already disabled.", TargetEntity, std::string{});
         }
 
-        RunEntryWithArguments(RuntimeInstance->mEntries.mOnDisable, &RuntimeInstance->mContext);
+        BehaviorOperationResult DisableResult{ RunEntryWithArguments(RuntimeInstance->mEntries.mOnDisable, TargetEntity, RuntimeInstance->mBehaviorFileName, &RuntimeInstance->mContext) };
+
+        if (!DisableResult) {
+            return DisableResult;
+        }
+
         RuntimeInstance->mIsEnabled = false;
-        return true;
+        ClearError();
+        return BehaviorOperationResult::Success();
     }
 
-    bool LuaBehaviorFramework::DestroyBehavior(Arche::EntityID TargetEntity) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::DestroyBehavior(Arche::EntityID TargetEntity) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
         RuntimeBehaviorInstance* RuntimeInstance{ FindRuntimeInstance(TargetEntity) };
 
         if (RuntimeInstance == nullptr) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::BehaviorNotFound, "Behavior runtime instance was not found.", TargetEntity, std::string{});
         }
 
         if (RuntimeInstance->mIsEnabled) {
-            RunEntryWithArguments(RuntimeInstance->mEntries.mOnDisable, &RuntimeInstance->mContext);
+            BehaviorOperationResult DisableResult{ RunEntryWithArguments(RuntimeInstance->mEntries.mOnDisable, TargetEntity, RuntimeInstance->mBehaviorFileName, &RuntimeInstance->mContext) };
+
+            if (!DisableResult) {
+                return DisableResult;
+            }
+
             RuntimeInstance->mIsEnabled = false;
         }
 
-        RunEntryWithArguments(RuntimeInstance->mEntries.mOnDestroy, &RuntimeInstance->mContext);
+        BehaviorOperationResult DestroyResult{ RunEntryWithArguments(RuntimeInstance->mEntries.mOnDestroy, TargetEntity, RuntimeInstance->mBehaviorFileName, &RuntimeInstance->mContext) };
+
+        if (!DestroyResult) {
+            return DestroyResult;
+        }
 
         BehaviorInstanceComponent* InstanceComponent{ mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity) };
 
         if (InstanceComponent == nullptr) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::RuntimeStateMismatch, "Behavior component was not found in ECS world.", TargetEntity, RuntimeInstance->mBehaviorFileName);
         }
 
         auto RuntimeIt{ mRuntimeInstances.find(InstanceComponent->mBehaviorInstanceId) };
 
         if (RuntimeIt == mRuntimeInstances.end()) {
-            return false;
+            return HandleFailure(BehaviorErrorCode::RuntimeStateMismatch, "Behavior runtime map entry was not found.", TargetEntity, RuntimeInstance->mBehaviorFileName);
         }
 
         mRuntimeInstances.erase(RuntimeIt);
-        return true;
+        ResetBehaviorComponent(TargetEntity, 0u);
+        ClearError();
+        return BehaviorOperationResult::Success();
     }
 
     void LuaBehaviorFramework::DetachBehavior(Arche::EntityID TargetEntity) {
@@ -279,6 +388,7 @@ namespace Script {
 
     void LuaBehaviorFramework::Update(float DeltaSeconds) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
 
         for (auto& RuntimePair : mRuntimeInstances) {
             RuntimeBehaviorInstance& RuntimeInstance{ RuntimePair.second };
@@ -287,12 +397,13 @@ namespace Script {
                 continue;
             }
 
-            RunEntryWithArguments(RuntimeInstance.mEntries.mUpdate, &RuntimeInstance.mContext, DeltaSeconds);
+            static_cast<void>(RunEntryWithArguments(RuntimeInstance.mEntries.mUpdate, RuntimeInstance.mContext.GetEntityId(), RuntimeInstance.mBehaviorFileName, &RuntimeInstance.mContext, DeltaSeconds));
         }
     }
 
     void LuaBehaviorFramework::FixedUpdate(float FixedDeltaSeconds) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
 
         for (auto& RuntimePair : mRuntimeInstances) {
             RuntimeBehaviorInstance& RuntimeInstance{ RuntimePair.second };
@@ -302,12 +413,13 @@ namespace Script {
             }
 
             RuntimeInstance.mFixedTick = RuntimeInstance.mFixedTick + 1;
-            RunEntryWithArguments(RuntimeInstance.mEntries.mFixedUpdate, &RuntimeInstance.mContext, FixedDeltaSeconds, RuntimeInstance.mFixedTick);
+            static_cast<void>(RunEntryWithArguments(RuntimeInstance.mEntries.mFixedUpdate, RuntimeInstance.mContext.GetEntityId(), RuntimeInstance.mBehaviorFileName, &RuntimeInstance.mContext, FixedDeltaSeconds, RuntimeInstance.mFixedTick));
         }
     }
 
     void LuaBehaviorFramework::LateUpdate(float DeltaSeconds) {
         std::lock_guard<std::mutex> RuntimeGuard{ mRuntimeMutex };
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mWorldFlowMutex };
 
         for (auto& RuntimePair : mRuntimeInstances) {
             RuntimeBehaviorInstance& RuntimeInstance{ RuntimePair.second };
@@ -316,8 +428,12 @@ namespace Script {
                 continue;
             }
 
-            RunEntryWithArguments(RuntimeInstance.mEntries.mLateUpdate, &RuntimeInstance.mContext, DeltaSeconds);
+            static_cast<void>(RunEntryWithArguments(RuntimeInstance.mEntries.mLateUpdate, RuntimeInstance.mContext.GetEntityId(), RuntimeInstance.mBehaviorFileName, &RuntimeInstance.mContext, DeltaSeconds));
         }
+    }
+
+    const LuaBehaviorFramework::BehaviorError& LuaBehaviorFramework::GetLastError() const {
+        return mLastError;
     }
 
     sol::state& LuaBehaviorFramework::GetState() {
@@ -339,6 +455,10 @@ namespace Script {
             return nullptr;
         }
 
+        if (InstanceComponent->mBehaviorInstanceId == 0u) {
+            return nullptr;
+        }
+
         auto RuntimeIt{ mRuntimeInstances.find(InstanceComponent->mBehaviorInstanceId) };
 
         if (RuntimeIt == mRuntimeInstances.end()) {
@@ -357,17 +477,50 @@ namespace Script {
         return mLastIssuedBehaviorInstanceId;
     }
 
-    bool LuaBehaviorFramework::ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const {
         std::ifstream InputStream{ BehaviorFilePath, std::ios::in | std::ios::binary };
 
         if (!InputStream.is_open()) {
-            return false;
+            return BehaviorOperationResult::Failure(BehaviorErrorCode::BehaviorSourceReadFailed, "Unable to open behavior file.", Arche::EntityID{}, BehaviorFilePath);
         }
 
         std::stringstream Buffer{};
         Buffer << InputStream.rdbuf();
         OutBehaviorSource = Buffer.str();
-        return true;
+        return BehaviorOperationResult::Success();
+    }
+
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::HandleFailure(BehaviorErrorCode Code, const std::string& Message, Arche::EntityID Entity, const std::string& BehaviorFilePath) {
+        mLastError.mCode = Code;
+        mLastError.mMessage = Message;
+        mLastError.mEntity = Entity;
+        mLastError.mBehaviorFilePath = BehaviorFilePath;
+
+        if (Code == BehaviorErrorCode::LuaLoadFailed) {
+            std::exit(EXIT_FAILURE);
+        }
+
+        return BehaviorOperationResult::Failure(Code, Message, Entity, BehaviorFilePath);
+    }
+
+    void LuaBehaviorFramework::ClearError() {
+        mLastError = BehaviorError{};
+    }
+
+    void LuaBehaviorFramework::ResetBehaviorComponent(Arche::EntityID TargetEntity, std::uint32_t BehaviorAssetId) {
+        if (mWorld == nullptr) {
+            return;
+        }
+
+        BehaviorInstanceComponent* ExistingComponent{ mWorld->GetComponent<BehaviorInstanceComponent>(TargetEntity) };
+
+        if (ExistingComponent == nullptr) {
+            return;
+        }
+
+        ExistingComponent->mOwnerEntity = TargetEntity;
+        ExistingComponent->mBehaviorInstanceId = 0u;
+        ExistingComponent->mBehaviorAssetId = BehaviorAssetId;
     }
 
     void LuaBehaviorFramework::StartFixedUpdateThread() {

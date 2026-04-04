@@ -20,19 +20,21 @@ namespace Script {
 
     template <TrivialComponent T>
     T* LuaBehaviorFramework::BehaviorContext::GetComponent() {
-        if (mWorld == nullptr) {
+        if (mWorld == nullptr || mOwnerFramework == nullptr) {
             return nullptr;
         }
 
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mOwnerFramework->mWorldFlowMutex };
         return mWorld->GetComponent<T>(mOwnerEntity);
     }
 
     template <TrivialComponent T>
     const T* LuaBehaviorFramework::BehaviorContext::GetComponent() const {
-        if (mWorld == nullptr) {
+        if (mWorld == nullptr || mOwnerFramework == nullptr) {
             return nullptr;
         }
 
+        std::lock_guard<std::recursive_mutex> WorldFlowLock{ mOwnerFramework->mWorldFlowMutex };
         return mWorld->GetComponent<T>(mOwnerEntity);
     }
 
@@ -75,12 +77,17 @@ namespace Script {
     }
 
     template <typename... TArgs>
-    bool LuaBehaviorFramework::RunEntryWithArguments(sol::protected_function& EntryFunction, TArgs&&... Arguments) {
+    LuaBehaviorFramework::BehaviorOperationResult LuaBehaviorFramework::RunEntryWithArguments(sol::protected_function& EntryFunction, Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, TArgs&&... Arguments) {
         if (!EntryFunction.valid()) {
-            return true;
+            return BehaviorOperationResult::Success();
         }
 
         sol::protected_function_result EntryResult{ EntryFunction(std::forward<TArgs>(Arguments)...) };
-        return EntryResult.valid();
+
+        if (!EntryResult.valid()) {
+            return HandleFailure(BehaviorErrorCode::LuaRuntimeFailed, std::string{ EntryResult.get<sol::error>().what() }, TargetEntity, BehaviorFilePath);
+        }
+
+        return BehaviorOperationResult::Success();
     }
 }

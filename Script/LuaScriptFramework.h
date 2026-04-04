@@ -21,6 +21,37 @@ namespace Script {
         using ComponentGetter = std::function<sol::object(sol::state_view, Arche::World&, Arche::EntityID)>;
 
     public:
+        enum class BehaviorErrorCode {
+            None,
+            WorldNotInitialized,
+            BehaviorAlreadyAttached,
+            BehaviorNotFound,
+            BehaviorSourceReadFailed,
+            LuaLoadFailed,
+            LuaRuntimeFailed,
+            InvalidBehaviorPath,
+            RuntimeStateMismatch,
+            InvalidFixedDeltaSeconds,
+            Unknown
+        };
+
+        struct BehaviorError final {
+            BehaviorErrorCode mCode{ BehaviorErrorCode::None };
+            std::string mMessage{};
+            Arche::EntityID mEntity{};
+            std::string mBehaviorFilePath{};
+        };
+
+        struct BehaviorOperationResult final {
+            bool mIsSuccess{ false };
+            BehaviorError mError{};
+
+            static BehaviorOperationResult Success();
+            static BehaviorOperationResult Failure(BehaviorErrorCode Code, const std::string& Message, Arche::EntityID Entity, const std::string& BehaviorFilePath);
+            explicit operator bool() const;
+        };
+
+    public:
         class BehaviorContext final {
         public:
             BehaviorContext();
@@ -81,7 +112,7 @@ namespace Script {
     public:
         void Initialize(Arche::World* TargetWorld);
         void OpenDefaultLibraries();
-        void SetFixedUpdateInterval(float FixedDeltaSeconds);
+        BehaviorOperationResult SetFixedUpdateInterval(float FixedDeltaSeconds);
 
         template <TrivialComponent T>
         void RegisterComponent(const std::string& ComponentName);
@@ -100,16 +131,18 @@ namespace Script {
         template <typename T, typename... TArgs>
         void RegisterTypeUsertype(const std::string& TypeName, TArgs&&... UsertypeArguments);
 
-        bool AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId);
-        bool AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId);
-        bool HotReloadBehavior(const std::string& BehaviorFileName);
-        bool DisableBehavior(Arche::EntityID TargetEntity);
-        bool DestroyBehavior(Arche::EntityID TargetEntity);
+        BehaviorOperationResult AttachBehavior(Arche::EntityID TargetEntity, const std::string& BehaviorSource, std::uint32_t BehaviorAssetId);
+        BehaviorOperationResult AttachBehaviorFromFile(Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, std::uint32_t BehaviorAssetId);
+        BehaviorOperationResult HotReloadBehavior(const std::string& BehaviorFileName);
+        BehaviorOperationResult DisableBehavior(Arche::EntityID TargetEntity);
+        BehaviorOperationResult DestroyBehavior(Arche::EntityID TargetEntity);
 
         void DetachBehavior(Arche::EntityID TargetEntity);
         void Update(float DeltaSeconds);
         void FixedUpdate(float FixedDeltaSeconds);
         void LateUpdate(float DeltaSeconds);
+
+        const BehaviorError& GetLastError() const;
 
         sol::state& GetState();
         const sol::state& GetState() const;
@@ -118,7 +151,11 @@ namespace Script {
         RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity);
         const RuntimeBehaviorInstance* FindRuntimeInstance(Arche::EntityID TargetEntity) const;
         std::uint32_t GenerateBehaviorInstanceId();
-        bool ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const;
+        BehaviorOperationResult ReadBehaviorSourceFromFilePath(const std::string& BehaviorFilePath, std::string& OutBehaviorSource) const;
+
+        BehaviorOperationResult HandleFailure(BehaviorErrorCode Code, const std::string& Message, Arche::EntityID Entity, const std::string& BehaviorFilePath);
+        void ClearError();
+        void ResetBehaviorComponent(Arche::EntityID TargetEntity, std::uint32_t BehaviorAssetId);
 
         void StartFixedUpdateThread();
         void StopFixedUpdateThread();
@@ -127,7 +164,7 @@ namespace Script {
         void ResolveBehaviorEntries(RuntimeBehaviorInstance& TargetInstance);
 
         template <typename... TArgs>
-        bool RunEntryWithArguments(sol::protected_function& EntryFunction, TArgs&&... Arguments);
+        BehaviorOperationResult RunEntryWithArguments(sol::protected_function& EntryFunction, Arche::EntityID TargetEntity, const std::string& BehaviorFilePath, TArgs&&... Arguments);
 
     private:
         Arche::World* mWorld{};
@@ -141,6 +178,8 @@ namespace Script {
         std::atomic<bool> mIsFixedUpdateThreadRunning{ false };
         std::condition_variable mFixedUpdateCondition{};
         std::mutex mRuntimeMutex{};
+        std::recursive_mutex mWorldFlowMutex{};
+        BehaviorError mLastError{};
     };
 }
 
